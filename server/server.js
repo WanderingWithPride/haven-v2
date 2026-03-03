@@ -79,21 +79,58 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
     const { name } = req.params;
     const { exec } = require('child_process');
 
-    const commands = {
-        ollama: 'ollama serve &',
-        kiwix: config.services.kiwix.zimFile
-            ? `kiwix-serve --port=${config.services.kiwix.port} "${config.services.kiwix.zimFile}" &`
-            : null
-    };
+    if (name === 'ollama') {
+        exec('ollama serve &', (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Ollama started' });
+        });
+    } else if (name === 'kiwix') {
+        // Find ZIM file: check config first, then auto-detect in downloads
+        let zimFile = config.services.kiwix.zimFile;
+        if (!zimFile) {
+            const dlDir = path.join(__dirname, 'downloads');
+            try {
+                if (fs.existsSync(dlDir)) {
+                    const zims = fs.readdirSync(dlDir).filter(f => f.endsWith('.zim'));
+                    if (zims.length > 0) zimFile = path.join(dlDir, zims[0]);
+                }
+            } catch (e) { }
+        }
 
-    if (!commands[name]) {
-        return res.status(400).json({ error: `Unknown service or not configured: ${name}` });
+        if (!zimFile) {
+            return res.status(400).json({
+                error: 'No ZIM file found. Either download one from Content Store or set the path in Configuration > Kiwix ZIM File'
+            });
+        }
+
+        // Check if kiwix-serve is installed, install if on Termux
+        exec('which kiwix-serve', (checkErr) => {
+            if (checkErr) {
+                // Try to install kiwix-tools on Termux
+                exec('pkg install -y kiwix-tools 2>&1', { timeout: 120000 }, (installErr, installOut) => {
+                    if (installErr) {
+                        return res.status(400).json({
+                            error: 'kiwix-serve not found. Install it: pkg install kiwix-tools'
+                        });
+                    }
+                    // Now start after install
+                    const port = config.services.kiwix.port || 8889;
+                    exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
+                        if (err) return res.status(500).json({ error: err.message });
+                        res.json({ success: true, message: `Kiwix started on port ${port}` });
+                    });
+                });
+            } else {
+                const port = config.services.kiwix.port || 8889;
+                exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true, message: `Kiwix started on port ${port}` });
+                });
+            }
+        });
+    } else {
+        res.status(400).json({ error: `Unknown service: ${name}` });
     }
-
-    exec(commands[name], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, message: `${name} started` });
-    });
 });
 
 app.post('/api/services/:name/stop', requireAdmin, (req, res) => {

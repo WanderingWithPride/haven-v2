@@ -2,6 +2,8 @@ const express = require('express');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+let multer;
+try { multer = require('multer'); } catch (e) { multer = null; }
 
 module.exports = function (config) {
     const router = express.Router();
@@ -58,21 +60,26 @@ module.exports = function (config) {
         res.json({ success: true, files: meta.files.map(f => ({ id: f.id, name: f.name, size: f.originalSize, date: f.date })) });
     });
 
-    // Store a file into vault
-    router.post('/store', express.raw({ type: '*/*', limit: '100mb' }), (req, res) => {
+    // Store a file into vault (using multer for reliable upload)
+    const upload = multer ? multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }) : null;
+
+    const storeHandler = (req, res) => {
         const vaultPass = req.headers['x-vault-password'];
-        const fileName = req.headers['x-file-name'] || 'unnamed';
+        const fileName = req.file ? req.file.originalname : (req.headers['x-file-name'] || 'unnamed');
         if (!vaultPass) return res.status(400).json({ error: 'Vault password required' });
 
         const meta = loadMeta();
         const hash = crypto.createHash('sha256').update(vaultPass).digest('hex');
         if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong vault password' });
 
+        const fileData = req.file ? req.file.buffer : req.body;
+        if (!fileData || fileData.length === 0) return res.status(400).json({ error: 'No file data received' });
+
         const key = deriveKey(vaultPass);
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
-        const encrypted = Buffer.concat([cipher.update(req.body), cipher.final()]);
+        const encrypted = Buffer.concat([cipher.update(fileData), cipher.final()]);
         const authTag = cipher.getAuthTag();
 
         const fileId = crypto.randomBytes(8).toString('hex');
@@ -85,14 +92,20 @@ module.exports = function (config) {
         meta.files.push({
             id: fileId,
             name: fileName,
-            originalSize: req.body.length,
+            originalSize: fileData.length,
             encSize: output.length,
             date: new Date().toISOString()
         });
         saveMeta(meta);
 
         res.json({ success: true, id: fileId });
-    });
+    };
+
+    if (upload) {
+        router.post('/store', upload.single('file'), storeHandler);
+    } else {
+        router.post('/store', express.raw({ type: '*/*', limit: '100mb' }), storeHandler);
+    }
 
     // Retrieve a file from vault
     router.post('/retrieve/:id', (req, res) => {

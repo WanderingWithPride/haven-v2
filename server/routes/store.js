@@ -19,12 +19,11 @@ module.exports = function (config) {
                     name: 'Wikipedia & Knowledge',
                     icon: '📚',
                     items: [
-                        { id: 'wiki-en-mini', name: 'Wikipedia English (Mini)', desc: 'Condensed encyclopedia, top articles', size: '1.2 GB', url: 'https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_mini.zim', type: 'zim' },
-                        { id: 'wiki-en-nopic', name: 'Wikipedia English (No Pictures)', desc: 'Full articles, no images', size: '10 GB', url: 'https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_nopic.zim', type: 'zim' },
-                        { id: 'wiki-en-full', name: 'Wikipedia English (Full)', desc: 'Complete with images', size: '97 GB', url: 'https://download.kiwix.org/zim/wikipedia/', type: 'zim' },
-                        { id: 'wikibooks', name: 'Wikibooks English', desc: 'Open textbooks and manuals', size: '700 MB', url: 'https://download.kiwix.org/zim/wikibooks/', type: 'zim' },
-                        { id: 'wikihow', name: 'WikiHow', desc: 'How-to guides for everything', size: '5 GB', url: 'https://download.kiwix.org/zim/other/', type: 'zim' },
-                        { id: 'stackexchange', name: 'StackOverflow', desc: 'Programming Q&A archive', size: '8 GB', url: 'https://download.kiwix.org/zim/stack_exchange/', type: 'zim' }
+                        { id: 'wiki-en-mini', name: 'Wikipedia Simple English', desc: 'Simple English Wikipedia, all articles', size: '~700 MB', url: 'https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_maxi_2024-06.zim', type: 'zim' },
+                        { id: 'wiki-en-nopic', name: 'Wikipedia English (No Pics)', desc: 'Full text, no images — best size/content ratio', size: '~10 GB', url: 'https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_nopic_2024-06.zim', type: 'zim' },
+                        { id: 'wikibooks', name: 'Wikibooks English', desc: 'Open textbooks and manuals', size: '~400 MB', url: 'https://download.kiwix.org/zim/wikibooks/wikibooks_en_all_maxi_2024-06.zim', type: 'zim' },
+                        { id: 'wikihow', name: 'WikiHow English', desc: 'How-to guides for everything', size: '~5 GB', url: 'https://download.kiwix.org/zim/other/wikihow_en_maxi_2024-06.zim', type: 'zim' },
+                        { id: 'stackexchange', name: 'StackOverflow', desc: 'Programming Q&A archive', size: '~8 GB', url: 'https://download.kiwix.org/zim/stack_exchange/stackoverflow.com_en_all_2024-06.zim', type: 'zim' }
                     ]
                 },
                 {
@@ -44,15 +43,15 @@ module.exports = function (config) {
                     icon: '🛡️',
                     items: [
                         { id: 'gutenberg', name: 'Project Gutenberg Top 100', desc: '100 classic books (EPUB)', size: '200 MB', url: 'https://www.gutenberg.org/', type: 'manual' },
-                        { id: 'medref', name: 'WHO Medical Reference', desc: 'Essential medicines + first aid', size: '50 MB', url: 'https://www.who.int/publications', type: 'manual' },
-                        { id: 'survival-fm', name: 'US Army Survival Manual FM 21-76', desc: 'Comprehensive field survival', size: '15 MB', url: 'https://archive.org/', type: 'manual' }
+                        { id: 'medref', name: 'WHO Medical Reference', desc: 'Essential medicines + first aid', size: '50 MB', url: 'https://download.kiwix.org/zim/other/who_en_all_2024-06.zim', type: 'zim' },
+                        { id: 'survival-fm', name: 'US Army Survival Manual', desc: 'FM 21-76 field survival guide', size: '15 MB', url: 'https://archive.org/', type: 'manual' }
                     ]
                 },
                 {
                     name: 'Maps & Navigation',
                     icon: '🗺️',
                     items: [
-                        { id: 'osm-tiles-country', name: 'Offline Map Tiles (Your Country)', desc: 'Download tiles for offline use', size: 'Varies', url: 'https://openmaptiles.org/', type: 'manual' }
+                        { id: 'osm-tiles-country', name: 'Offline Map Tiles', desc: 'Download tiles for offline use via OpenMapTiles', size: 'Varies', url: 'https://openmaptiles.org/', type: 'manual' }
                     ]
                 }
             ]

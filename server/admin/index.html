@@ -835,7 +835,16 @@
         async function toggleService(name) {
             const dot = document.getElementById('dot' + name.charAt(0).toUpperCase() + name.slice(1));
             const action = dot.classList.contains('running') ? 'stop' : 'start';
-            try { await adminFetch(`${API}/api/services/${name}/${action}`, { method: 'POST' }); setTimeout(loadServices, 1500); } catch (e) { console.error(e); }
+            try {
+                const res = await adminFetch(`${API}/api/services/${name}/${action}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.error) {
+                    alert(`${name}: ${data.error}`);
+                }
+                setTimeout(loadServices, 1500);
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
         }
 
         async function saveConfig() {

@@ -153,16 +153,17 @@ const VaultModule = {
 
     async storeFiles(fileList) {
         for (const file of fileList) {
-            const buffer = await file.arrayBuffer();
             try {
+                const formData = new FormData();
+                formData.append('file', file);
+
                 await authFetch(`${API}/api/vault/store`, {
                     method: 'POST',
                     headers: {
-                        'x-vault-password': this.vaultPassword,
-                        'x-file-name': file.name,
-                        'x-auth-token': Auth.token
+                        'x-vault-password': this.vaultPassword
                     },
-                    body: buffer
+                    body: formData
+                    // Do NOT set Content-Type — browser sets it with boundary for FormData
                 });
             } catch (err) {
                 alert(`Failed to store ${file.name}: ${err.message}`);
