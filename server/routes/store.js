@@ -28,25 +28,25 @@ function httpsGet(url, maxRedirects = 5) {
 }
 
 // Download a file with progress tracking using Node.js built-in https
-function downloadFile(url, dest, dlId, activeDownloads, maxRedirects = 5) {
+function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedirects = 5) {
     const fileName = path.basename(dest);
     const proto = url.startsWith('https') ? https : http;
 
-    proto.get(url, (res) => {
+    const req = proto.get(url, (res) => {
         // Handle redirects
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             res.resume();
             if (maxRedirects <= 0) {
-                activeDownloads.set(dlId, { status: 'failed', progress: 0, output: 'Too many redirects' });
+                activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: 'Too many redirects' });
                 return;
             }
             const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
-            return downloadFile(next, dest, dlId, activeDownloads, maxRedirects - 1);
+            return downloadFile(next, dest, dlId, activeDownloads, activeProcesses, maxRedirects - 1);
         }
 
         if (res.statusCode !== 200) {
             res.resume();
-            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `HTTP error ${res.statusCode} for ${url}` });
+            activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `HTTP error ${res.statusCode} for ${url}` });
             return;
         }
 
@@ -59,7 +59,9 @@ function downloadFile(url, dest, dlId, activeDownloads, maxRedirects = 5) {
             const pct = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
             const dlMB = (downloaded / (1024 * 1024)).toFixed(1);
             const totalMB = totalSize > 0 ? (totalSize / (1024 * 1024)).toFixed(1) : '?';
+            const dl = activeDownloads.get(dlId) || {};
             activeDownloads.set(dlId, {
+                ...dl,
                 status: 'downloading',
                 progress: pct,
                 output: `${fileName}\n${dlMB} MB / ${totalMB} MB (${pct}%)`
@@ -70,24 +72,40 @@ function downloadFile(url, dest, dlId, activeDownloads, maxRedirects = 5) {
 
         fileStream.on('finish', () => {
             fileStream.close();
-            activeDownloads.set(dlId, {
-                status: 'complete', progress: 100,
-                output: `Downloaded: ${fileName}\nSaved to: ${dest}`
-            });
+            activeProcesses.delete(dlId);
+            const dl = activeDownloads.get(dlId) || {};
+            if (dl.status !== 'cancelled') {
+                activeDownloads.set(dlId, {
+                    ...dl,
+                    status: 'complete', progress: 100,
+                    output: `Downloaded: ${fileName}\nSaved to: ${dest}`
+                });
+            }
         });
 
         fileStream.on('error', (err) => {
             fs.unlink(dest, () => { });
-            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Write error: ${err.message}` });
+            activeProcesses.delete(dlId);
+            activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `Write error: ${err.message}` });
         });
 
         res.on('error', (err) => {
             fs.unlink(dest, () => { });
-            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Download error: ${err.message}` });
+            activeProcesses.delete(dlId);
+            activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `Download error: ${err.message}` });
         });
-    }).on('error', (err) => {
-        activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Connection error: ${err.message}` });
     });
+
+    req.on('error', (err) => {
+        activeProcesses.delete(dlId);
+        const dl = activeDownloads.get(dlId) || {};
+        if (dl.status !== 'cancelled') {
+            activeDownloads.set(dlId, { ...dl, status: 'failed', progress: 0, output: `Connection error: ${err.message}` });
+        }
+    });
+
+    // Store request reference for cancellation
+    activeProcesses.set(dlId, { type: 'request', req });
 }
 
 module.exports = function (config) {
@@ -97,6 +115,8 @@ module.exports = function (config) {
 
     // Active downloads tracker
     const activeDownloads = new Map();
+    // Track processes/requests for cancellation
+    const activeProcesses = new Map();
 
     // Catalog uses directory URLs + filename patterns for auto-discovery
     // 'dirUrl' = Kiwix directory, 'pattern' = regex to match the right file
@@ -207,20 +227,27 @@ module.exports = function (config) {
 
         if (type === 'ollama') {
             const dlId = id;
-            activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: '' });
+            activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: '', type: 'ollama', modelName: cmd.replace('ollama pull ', '') });
 
             const proc = exec(cmd, { timeout: 3600000 });
+            activeProcesses.set(dlId, { type: 'process', proc });
             let output = '';
             proc.stdout?.on('data', (d) => {
                 output += d;
-                activeDownloads.set(dlId, { status: 'downloading', progress: parseProgress(output), output });
+                const dl = activeDownloads.get(dlId) || {};
+                activeDownloads.set(dlId, { ...dl, status: 'downloading', progress: parseProgress(output), output });
             });
             proc.stderr?.on('data', (d) => {
                 output += d;
-                activeDownloads.set(dlId, { status: 'downloading', progress: parseProgress(output), output });
+                const dl = activeDownloads.get(dlId) || {};
+                activeDownloads.set(dlId, { ...dl, status: 'downloading', progress: parseProgress(output), output });
             });
             proc.on('close', (code) => {
-                activeDownloads.set(dlId, { status: code === 0 ? 'complete' : 'failed', progress: 100, output });
+                activeProcesses.delete(dlId);
+                const dl = activeDownloads.get(dlId) || {};
+                if (dl.status !== 'cancelled') {
+                    activeDownloads.set(dlId, { ...dl, status: code === 0 ? 'complete' : 'failed', progress: code === 0 ? 100 : dl.progress, output });
+                }
             });
 
             res.json({ success: true, downloadId: dlId, message: 'Model download started' });
@@ -245,10 +272,10 @@ module.exports = function (config) {
 
                 const fileName = downloadUrl.split('/').pop();
                 const dest = path.join(DOWNLOADS_DIR, fileName);
-                activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Downloading: ${fileName}` });
+                activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Downloading: ${fileName}`, type: 'zim', dest });
 
                 // Step 2: Download using Node.js built-in https (no curl/wget needed)
-                downloadFile(downloadUrl, dest, dlId, activeDownloads);
+                downloadFile(downloadUrl, dest, dlId, activeDownloads, activeProcesses);
 
                 res.json({ success: true, downloadId: dlId, message: `Downloading: ${fileName}` });
 
@@ -263,6 +290,129 @@ module.exports = function (config) {
         } else {
             res.status(400).json({ error: 'Invalid download type' });
         }
+    });
+
+    // Cancel an active download
+    router.post('/cancel/:id', (req, res) => {
+        const dlId = req.params.id;
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (proc) {
+            if (proc.type === 'process' && proc.proc) {
+                proc.proc.kill('SIGTERM');
+            } else if (proc.type === 'request' && proc.req) {
+                proc.req.destroy();
+            }
+            activeProcesses.delete(dlId);
+        }
+
+        // Delete partial file
+        if (dl && dl.dest) {
+            try { fs.unlinkSync(dl.dest); } catch (e) { }
+        }
+
+        activeDownloads.set(dlId, { status: 'cancelled', progress: 0, output: 'Download cancelled', type: dl?.type });
+        res.json({ success: true });
+    });
+
+    // Delete a downloaded item
+    router.delete('/delete/:id', (req, res) => {
+        const dlId = req.params.id;
+        const dl = activeDownloads.get(dlId);
+
+        if (dl && dl.type === 'zim' && dl.dest) {
+            try {
+                if (fs.existsSync(dl.dest)) fs.unlinkSync(dl.dest);
+                activeDownloads.delete(dlId);
+                return res.json({ success: true, message: 'ZIM file deleted' });
+            } catch (e) {
+                return res.status(500).json({ error: e.message });
+            }
+        } else if (dl && dl.type === 'ollama' && dl.modelName) {
+            exec(`ollama rm ${dl.modelName}`, { timeout: 30000 }, (err) => {
+                activeDownloads.delete(dlId);
+                if (err) return res.json({ success: true, message: 'Removed from store (ollama rm may have failed)' });
+                res.json({ success: true, message: `Model ${dl.modelName} deleted` });
+            });
+        } else {
+            // Try to find and delete any matching ZIM file
+            const files = fs.readdirSync(DOWNLOADS_DIR).filter(f => f.includes(dlId));
+            files.forEach(f => { try { fs.unlinkSync(path.join(DOWNLOADS_DIR, f)); } catch (e) { } });
+            activeDownloads.delete(dlId);
+            res.json({ success: true, message: 'Deleted' });
+        }
+    });
+
+    // Check what's already downloaded (survives server restart)
+    router.get('/status', (req, res) => {
+        const results = {};
+
+        // Check ZIM files in downloads dir
+        const zimPatterns = {
+            'wiki-en-simple': 'wikipedia_en_simple',
+            'wiki-en-nopic': 'wikipedia_en_all_nopic',
+            'wikibooks': 'wikibooks_en',
+            'wikihow': 'wikihow_en',
+            'stackexchange': 'stackoverflow',
+            'medref': 'who_en'
+        };
+
+        try {
+            const files = fs.readdirSync(DOWNLOADS_DIR);
+            for (const [itemId, prefix] of Object.entries(zimPatterns)) {
+                const match = files.find(f => f.startsWith(prefix) && f.endsWith('.zim'));
+                if (match) {
+                    const filePath = path.join(DOWNLOADS_DIR, match);
+                    const stat = fs.statSync(filePath);
+                    results[itemId] = {
+                        status: 'complete',
+                        fileName: match,
+                        size: stat.size,
+                        dest: filePath,
+                        type: 'zim'
+                    };
+                    // Restore to activeDownloads so delete works
+                    if (!activeDownloads.has(itemId)) {
+                        activeDownloads.set(itemId, {
+                            status: 'complete', progress: 100, type: 'zim', dest: filePath,
+                            output: `Downloaded: ${match}`
+                        });
+                    }
+                }
+            }
+        } catch (e) { }
+
+        // Check installed ollama models
+        const ollamaModels = {
+            'llm-tinyllama': 'tinyllama',
+            'llm-phi3-mini': 'phi3:mini',
+            'llm-gemma2': 'gemma2:2b',
+            'llm-llama3': 'llama3.2:3b',
+            'llm-mistral': 'mistral',
+            'llm-meditron': 'meditron'
+        };
+
+        exec('ollama list 2>/dev/null', { timeout: 5000 }, (err, stdout) => {
+            if (!err && stdout) {
+                for (const [itemId, modelName] of Object.entries(ollamaModels)) {
+                    if (stdout.includes(modelName.split(':')[0])) {
+                        results[itemId] = {
+                            status: 'complete',
+                            modelName,
+                            type: 'ollama'
+                        };
+                        if (!activeDownloads.has(itemId)) {
+                            activeDownloads.set(itemId, {
+                                status: 'complete', progress: 100, type: 'ollama', modelName,
+                                output: `Model ${modelName} installed`
+                            });
+                        }
+                    }
+                }
+            }
+            res.json(results);
+        });
     });
 
     // Check download progress
