@@ -55,7 +55,7 @@ const StoreModule = {
                     <div class="store-item card">
                         <div class="store-item-header">
                             <strong>${item.name}</strong>
-                            <span class="tag tag-cyan">${item.size}</span>
+                            <span class="tag tag-cyan" id="size-${item.id}">${item.size}</span>
                         </div>
                         <p style="font-size:12px;color:var(--text-dim);margin:6px 0">${item.desc}</p>
                         <div class="store-item-actions">
@@ -80,6 +80,22 @@ const StoreModule = {
         });
 
         el.innerHTML = html;
+        this.fetchExactSizes();
+    },
+
+    async fetchExactSizes() {
+        try {
+            const res = await authFetch(`${API}/api/store/sizes`);
+            const sizes = await res.json();
+            for (const [id, exactSize] of Object.entries(sizes)) {
+                const badge = document.getElementById(`size-${id}`);
+                if (badge) {
+                    badge.textContent = exactSize;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to fetch exact sizes', err);
+        }
     },
 
     async checkExistingDownloads() {

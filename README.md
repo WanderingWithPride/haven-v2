@@ -1,82 +1,117 @@
 # CyberDeck ⚡
 
-A **self-hosted platform** that turns your Android phone into a personal server for media streaming, AI chat, offline Wikipedia, maps, ebooks, and file management — all accessible through a single, stunning cyberpunk-themed web app.
+A **self-hosted survival/utility platform** that turns your Android phone (or any device running Node.js) into a personal, decentralized server. It provides media streaming, AI chat, offline Wikipedia, maps, encrypted storage, survival guides, and utility tools — all accessible through a single, stunning cyberpunk-themed web app without requiring an internet connection.
 
-## Features
+## 🌟 Core Features
 
+### Knowledge & Information
 | Module | Description |
 |--------|-------------|
-| 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art, queue, seek |
-| 📸 **Photos** | Gallery with thumbnails, date grouping, lightbox viewer |
-| 🎬 **Videos** | Stream videos with range-request seeking, fullscreen |
-| 🤖 **AI Chat** | Chat with local LLMs via Ollama (streaming responses) |
-| 📚 **Wikipedia** | Offline encyclopedia via Kiwix with search and article viewer |
-| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation |
-| 📖 **Ebooks** | EPUB reader (epub.js) and PDF viewer with library management |
-| 📁 **Files** | Browse, upload, download, preview, delete files on the phone |
+| 🤖 **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses. |
+| 📚 **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
+| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking. |
+| 📖 **Ebooks** | EPUB reader (epub.js) and PDF viewer. Remembers reading progress. |
+| 🛡️ **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation) modeled after FM 21-76. |
 
-## Quick Start (Termux)
+### Media & Storage
+| Module | Description |
+|--------|-------------|
+| 📁 **Files** | Full file manager. Browse, upload, download, and delete files on the host device. |
+| 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art extraction, visualizer, and persistent queue. |
+| 📸 **Photos** | Photo gallery with lazy-loaded thumbnails, date grouping, EXIF data, and lightbox viewer. |
+| 🎬 **Videos** | Stream videos with range-request seeking and fullscreen support. |
+| 🔒 **Vault** | AES-256-GCM encrypted secure storage. Encrypt/decrypt files directly in the browser (Zero-knowledge server). |
+
+### Utilities & Communication
+| Module | Description |
+|--------|-------------|
+| 🛠️ **Utilities** | Built-in tools: Compass, Calculator, Unit Converter, Morse Code generator, Flashlight toggle, Coordinates. |
+| 📡 **LAN Chat** | Local area network chat room using WebSockets. Works entirely offline across devices on the same Wi-Fi. |
+| 📦 **Store** | Built-in downloader to easily grab LLM models (via Ollama) and knowledge packs (ZIM files via Kiwix) with cancel/delete support. |
+| 🔋 **Power** | System monitor showing CPU load, RAM usage, storage space, battery level, internal temperature, and active service status. |
+
+## 🚀 Quick Start (Termux / Android)
+
+The ideal setup is running CyberDeck on an old or spare Android phone using Termux, acting as a portable survival server.
 
 ```bash
-# 1. Clone/copy the project to your phone
-# 2. Navigate to the server directory
+# 1. Install Termux and Termux:API from F-Droid (not Play Store)
+# 2. Update packages and install git/nodejs
+pkg update && pkg upgrade
+pkg install git nodejs termux-api
+
+# 3. Clone the repository
+git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck/server
 
-# 3. Run the setup script (installs everything)
-bash setup.sh
+# 4. Install dependencies
+npm install
 
-# 4. Start the server
+# 5. Start the server
 node server.js
 ```
 
-The server will display your LAN IP. Open it in any browser on the same network:
+The server will display your LAN IP (e.g., `192.168.1.38`). 
+Open that IP on any device connected to the same Wi-Fi network:
 - **Client App**: `http://<phone-ip>:8888`
 - **Admin Panel**: `http://<phone-ip>:8888/admin`
 
-## Admin Panel
+*(Note: CyberDeck uses a default PIN `1234` for first-time access. Change this immediately in the Admin Panel).*
 
-Access at `/admin` to:
-- **Start/stop services** (Ollama, Kiwix)
-- **Configure paths** (music, photos, videos, ebooks directories)
-- **Scan libraries** to index your media
-- **Run terminal commands** directly on Termux
-- **Monitor system** (CPU, RAM, uptime)
+## 🔌 Admin Panel (`/admin`)
 
-## Configuration
+Access the admin dashboard to manage your CyberDeck node:
+- **Security**: Change the access PIN.
+- **Service Management**: Start/stop background services (Ollama, Kiwix).
+- **Library Scanning**: Force rescan of Music, Photos, Videos, and Ebooks directories.
+- **Configuration**: Change default directory paths (`/sdcard/Music`, etc.).
+- **Terminal Access**: Run direct shell commands on the host device from your browser.
+- **System Metrics**: Real-time server performance graphing.
 
-Edit `server/config.json` or use the Admin Panel GUI:
+## 🎛️ How to Use Advanced Features
 
-```json
-{
-  "port": 8888,
-  "paths": {
-    "music": "/sdcard/Music",
-    "photos": "/sdcard/DCIM",
-    "videos": "/sdcard/Movies",
-    "ebooks": "/sdcard/Books",
-    "root": "/sdcard"
-  }
-}
+### Setting up Offline Wikipedia (Kiwix)
+1. Go to the **Store** module in the CyberDeck app.
+2. Find "Wikipedia", "Medical Wikipedia", or "Survival Manuals".
+3. Click Download. The server will fetch the `.zim` file (can be several GBs).
+4. Go to **Admin Panel**, ensure Kiwix is enabled, and start the service.
+5. Open the **Wikipedia** module to search and read offline!
+
+### Setting up Offline AI (Ollama)
+1. Go to the **Store** module and download a model (e.g., `Llama 3.2 3B` or `Phi-3 Mini`).
+2. Open the **AI Chat** module. CyberDeck will automatically detect the installed models and allow you to chat completely offline.
+
+### Using the Secure Vault
+1. Open the **Vault** module.
+2. Enter a strong master password to unlock the vault. *Do not lose this password; the server does not store it and cannot recover encrypted files.*
+3. Upload files. They are encrypted *in your browser* before being sent to the server.
+4. To view/download, the file is fetched encrypted and decrypted locally in your browser memory.
+
+### LAN Chat
+1. Open the **LAN Chat** module.
+2. Enter a username.
+3. Anyone else on the network who connects to your CyberDeck IP and opens LAN chat will instantly join the room. No internet required.
+
+## 🏗️ Architecture
+
+```text
+Host Device (Termux/PC)                 Client (Any Browser)
+┌──────────────────────┐               ┌──────────────────────┐
+│  Node.js Server      │               │  CyberDeck SPA       │
+│  ├─ Express API      │◄─── Wi-Fi ───►│  ├─ Vanilla JS/CSS   │
+│  ├─ SQLite DB        │   (Offline)   │  ├─ WebSockets       │
+│  ├─ Ollama (LLMs)    │               │  ├─ Crypto API       │
+│  └─ Kiwix (Wiki)     │               │  └─ Service Workers  │
+└──────────────────────┘               └──────────────────────┘
 ```
 
-## Architecture
+Everything is built using Vanilla JavaScript, HTML, and CSS without heavy frontend frameworks to ensure maximum performance on low-end devices and rapid loading over local networks.
 
-```
-Phone (Termux)                    Client (Browser)
-┌──────────────────┐             ┌──────────────────┐
-│  Node.js Server  │◄──Wi-Fi───►│  CyberDeck SPA   │
-│  + Ollama (LLM)  │             │  8 modules in    │
-│  + Kiwix (Wiki)  │             │  one web app     │
-└──────────────────┘             └──────────────────┘
-```
+## 📋 Requirements
+- **Host**: Node.js 18+ (Android via Termux, Linux, Windows, macOS).
+- **Client**: Any modern web browser.
+- **Hardware**: For basic features, any smartphone from the last 10 years works. For **AI Chat**, a device with at least 6GB RAM (8GB+ recommended) is required.
+- **Network**: Wi-Fi router or Mobile Hotspot (no active internet connection required after initial setup/downloads).
 
-## Requirements
-
-- Android phone with [Termux](https://f-droid.org/packages/com.termux/)
-- Node.js 18+ (installed by setup script)
-- 8GB+ RAM recommended for LLM features
-- Wi-Fi network for client access
-
-## License
-
-MIT
+## 📄 License
+MIT License. Build, mod, and survive.

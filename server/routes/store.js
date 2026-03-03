@@ -165,12 +165,15 @@ module.exports = function (config) {
                     name: 'Survival Knowledge Packs',
                     icon: '🛡️',
                     items: [
-                        { id: 'gutenberg', name: 'Project Gutenberg Top 100', desc: '100 classic books (EPUB)', size: '200 MB', url: 'https://www.gutenberg.org/', type: 'manual' },
+                        { id: 'gutenberg', name: 'Project Gutenberg', desc: 'classic books (EPUB)', size: 'Varies', url: 'https://www.gutenberg.org/', type: 'manual' },
                         {
-                            id: 'medref', name: 'Medical Wikipedia (mdwiki)', desc: 'Medical articles, drugs, first aid', size: '~800 MB',
+                            id: 'medref', name: 'Medical Wikipedia (mdwiki)', desc: 'Medical articles, drugs, first aid', size: '~2 GB',
                             dirUrl: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
                         },
-                        { id: 'survival-fm', name: 'US Army Survival Manual', desc: 'FM 21-76 field survival guide', size: '15 MB', url: 'https://archive.org/', type: 'manual' }
+                        {
+                            id: 'survival-fm', name: 'US Army Survival Manual', desc: 'FM 21-76 field survival guide', size: '~150 MB',
+                            url: 'https://archive.org/details/FM2176USARMYSURVIVALMANUAL/', type: 'manual'
+                        }
                     ]
                 },
                 {
@@ -442,6 +445,90 @@ module.exports = function (config) {
         } catch (err) {
             res.json({ files: [] });
         }
+    });
+
+    // Fetch exact download sizes dynamically
+    router.get('/sizes', async (req, res) => {
+        const sizes = {};
+
+        // 1. Fetch ZIM sizes from Kiwix
+        const zimDirs = [
+            { id: 'wiki-en-simple', url: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_simple_all_maxi_\\d{4}-\\d{2}\\.zim' },
+            { id: 'wiki-en-nopic', url: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_all_nopic_\\d{4}-\\d{2}\\.zim' },
+            { id: 'wikibooks', url: 'https://download.kiwix.org/zim/wikibooks/', pattern: 'wikibooks_en_all_maxi_\\d{4}-\\d{2}\\.zim' },
+            { id: 'wikihow', url: 'https://download.kiwix.org/zim/other/', pattern: 'wikihow_en_maxi_\\d{4}-\\d{2}\\.zim' },
+            { id: 'stackexchange', url: 'https://download.kiwix.org/zim/stackexchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim' },
+            { id: 'medref', url: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim' }
+        ];
+
+        // Group by directory to minimize HTTP requests
+        const dirs = [...new Set(zimDirs.map(z => z.url))];
+        for (const dirUrl of dirs) {
+            try {
+                const html = await httpsGet(dirUrl);
+                const itemsInDir = zimDirs.filter(z => z.url === dirUrl);
+                for (const item of itemsInDir) {
+                    try {
+                        // Look for the exact filename and capture the size on the same line
+                        // Example: <a href="wikibooks_en_all_maxi_2026-01.zim">...</a> 2026-01-28 02:06 5.1G
+                        const regex = new RegExp(`href="(${item.pattern})"[^>]*>.*?</a>\\s+\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}\\s+([0-9.]+[KMG])`, 'g');
+                        let latestMatch = null;
+                        let latestSize = null;
+                        let m;
+                        while ((m = regex.exec(html)) !== null) {
+                            latestMatch = m[1];
+                            latestSize = m[2]; // e.g., "5.1G" or "800M"
+                        }
+
+                        if (!latestSize) {
+                            // Fallback regex if date format differs
+                            const fallbackRegex = new RegExp(`href="(${item.pattern})"[^>]*>.*?</a>.*?([0-9.]+[KMG])(?:\\s*<|\\n|$)`, 'gi');
+                            while ((m = fallbackRegex.exec(html)) !== null) {
+                                latestSize = m[2];
+                            }
+                        }
+
+                        if (latestSize) {
+                            // Convert K/M/G to standard MB/GB display
+                            let formatted = latestSize.replace('G', ' GB').replace('M', ' MB').replace('K', ' KB');
+                            sizes[item.id] = formatted;
+                        }
+                    } catch (e) { console.error(`Failed to parse size for ${item.id}`); }
+                }
+            } catch (e) {
+                console.error(`Failed to fetch Kiwix directory: ${dirUrl}`);
+            }
+        }
+
+        // 2. Fetch Ollama model sizes from registry API
+        const ollamaModels = {
+            'llm-tinyllama': 'tinyllama:latest',
+            'llm-phi3-mini': 'phi3:mini',
+            'llm-gemma2': 'gemma2:2b',
+            'llm-llama3': 'llama3.2:3b',
+            'llm-mistral': 'mistral:latest',
+            'llm-meditron': 'meditron:latest'
+        };
+
+        for (const [id, modelTag] of Object.entries(ollamaModels)) {
+            try {
+                const [model, tag] = modelTag.split(':');
+                const url = `https://registry.ollama.ai/v2/library/${model}/manifests/${tag}`;
+                const manifestText = await httpsGet(url, { 'Accept': 'application/vnd.docker.distribution.manifest.v2+json' });
+                const manifest = JSON.parse(manifestText);
+                if (manifest.config && manifest.config.size) {
+                    let totalBytes = manifest.config.size;
+                    if (manifest.layers) {
+                        totalBytes += manifest.layers.reduce((acc, layer) => acc + layer.size, 0);
+                    }
+                    sizes[id] = (totalBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+                }
+            } catch (e) {
+                // Ignore API parsing errors
+            }
+        }
+
+        res.json(sizes);
     });
 
     return router;
