@@ -168,7 +168,7 @@ module.exports = function (config) {
                         { id: 'gutenberg', name: 'Project Gutenberg Top 100', desc: '100 classic books (EPUB)', size: '200 MB', url: 'https://www.gutenberg.org/', type: 'manual' },
                         {
                             id: 'medref', name: 'Medical Wikipedia (mdwiki)', desc: 'Medical articles, drugs, first aid', size: '~800 MB',
-                            dirUrl: 'https://download.kiwix.org/zim/mdwiki/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
                         },
                         { id: 'survival-fm', name: 'US Army Survival Manual', desc: 'FM 21-76 field survival guide', size: '15 MB', url: 'https://archive.org/', type: 'manual' }
                     ]
@@ -364,26 +364,28 @@ module.exports = function (config) {
                 const match = files.find(f => f.startsWith(prefix) && f.endsWith('.zim'));
                 if (match) {
                     const filePath = path.join(DOWNLOADS_DIR, match);
-                    const stat = fs.statSync(filePath);
-                    results[itemId] = {
-                        status: 'complete',
-                        fileName: match,
-                        size: stat.size,
-                        dest: filePath,
-                        type: 'zim'
-                    };
-                    // Restore to activeDownloads so delete works
-                    if (!activeDownloads.has(itemId)) {
-                        activeDownloads.set(itemId, {
-                            status: 'complete', progress: 100, type: 'zim', dest: filePath,
-                            output: `Downloaded: ${match}`
-                        });
-                    }
+                    try {
+                        const stat = fs.statSync(filePath);
+                        results[itemId] = {
+                            status: 'complete',
+                            fileName: match,
+                            size: stat.size,
+                            dest: filePath,
+                            type: 'zim'
+                        };
+                        // Restore to activeDownloads so delete works
+                        if (!activeDownloads.has(itemId)) {
+                            activeDownloads.set(itemId, {
+                                status: 'complete', progress: 100, type: 'zim', dest: filePath,
+                                output: `Downloaded: ${match}`
+                            });
+                        }
+                    } catch (e) { }
                 }
             }
         } catch (e) { }
 
-        // Check installed ollama models
+        // Check installed ollama models (non-blocking, with fallback)
         const ollamaModels = {
             'llm-tinyllama': 'tinyllama',
             'llm-phi3-mini': 'phi3:mini',
@@ -393,26 +395,31 @@ module.exports = function (config) {
             'llm-meditron': 'meditron'
         };
 
-        exec('ollama list 2>/dev/null', { timeout: 5000 }, (err, stdout) => {
-            if (!err && stdout) {
-                for (const [itemId, modelName] of Object.entries(ollamaModels)) {
-                    if (stdout.includes(modelName.split(':')[0])) {
-                        results[itemId] = {
-                            status: 'complete',
-                            modelName,
-                            type: 'ollama'
-                        };
-                        if (!activeDownloads.has(itemId)) {
-                            activeDownloads.set(itemId, {
-                                status: 'complete', progress: 100, type: 'ollama', modelName,
-                                output: `Model ${modelName} installed`
-                            });
+        try {
+            exec('ollama list', { timeout: 3000 }, (err, stdout) => {
+                if (!err && stdout) {
+                    for (const [itemId, modelName] of Object.entries(ollamaModels)) {
+                        if (stdout.includes(modelName.split(':')[0])) {
+                            results[itemId] = {
+                                status: 'complete',
+                                modelName,
+                                type: 'ollama'
+                            };
+                            if (!activeDownloads.has(itemId)) {
+                                activeDownloads.set(itemId, {
+                                    status: 'complete', progress: 100, type: 'ollama', modelName,
+                                    output: `Model ${modelName} installed`
+                                });
+                            }
                         }
                     }
                 }
-            }
+                res.json(results);
+            });
+        } catch (e) {
+            // If exec itself fails, still return ZIM results
             res.json(results);
-        });
+        }
     });
 
     // Check download progress

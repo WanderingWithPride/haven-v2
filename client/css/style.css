@@ -218,6 +218,13 @@ body {
     border-top: 1px solid var(--border);
 }
 
+@media (max-width: 768px) {
+    .sidebar-footer {
+        padding-bottom: 24px;
+        /* extra space for mobile gesture bar/chrome */
+    }
+}
+
 .connection-status {
     display: flex;
     align-items: center;
