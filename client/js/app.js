@@ -159,6 +159,12 @@ function switchModule(name) {
             case 'maps': MapsModule.init(); break;
             case 'ebooks': EbooksModule.init(); break;
             case 'files': FilesModule.init(); break;
+            case 'survival': SurvivalModule.init(); break;
+            case 'utils': UtilsModule.init(); break;
+            case 'vault': VaultModule.init(); break;
+            case 'chat': ChatModule.init(); break;
+            case 'power': PowerModule.init(); break;
+            case 'store': StoreModule.init(); break;
         }
     }
 

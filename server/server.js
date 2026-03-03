@@ -34,6 +34,10 @@ app.use('/api/wiki', requireAuth, require('./routes/wiki')(config));
 app.use('/api/maps', requireAuth, require('./routes/maps')(config));
 app.use('/api/ebooks', requireAuth, require('./routes/ebooks')(config));
 app.use('/api/files', requireAuth, require('./routes/files')(config));
+app.use('/api/survival', requireAuth, require('./routes/survival')(config));
+app.use('/api/vault', requireAuth, require('./routes/vault')(config));
+app.use('/api/power', requireAuth, require('./routes/power')(config));
+app.use('/api/store', requireAuth, require('./routes/store')(config));
 
 // Config API (admin only)
 app.get('/api/config', requireAdmin, (req, res) => {
@@ -166,9 +170,16 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
-// Start server
+// Start server with HTTP (needed for WebSocket)
+const http = require('http');
+const httpServer = http.createServer(app);
+
+// Setup WebSocket chat
+const setupChat = require('./chat');
+setupChat(httpServer);
+
 const PORT = config.port || 8888;
-app.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
     const ip = getLanIP();
     console.log('');
     console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
@@ -178,5 +189,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`  \x1b[1mLocal:\x1b[0m    http://localhost:${PORT}`);
     console.log(`  \x1b[1mNetwork:\x1b[0m  http://${ip}:${PORT}`);
     console.log(`  \x1b[1mAdmin:\x1b[0m    http://${ip}:${PORT}/admin`);
+    console.log(`  \x1b[1mChat WS:\x1b[0m  ws://${ip}:${PORT}/ws/chat`);
     console.log('');
 });
