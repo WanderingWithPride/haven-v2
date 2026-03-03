@@ -2078,6 +2078,28 @@ body {
         width: 100%;
         padding-top: 56px;
         /* space for mobile header */
+        padding-bottom: 80px;
+        /* space for mobile browser bottom bar */
+    }
+
+    /* File manager: hide date column and show actions on mobile */
+    .file-date {
+        display: none;
+    }
+
+    .file-size {
+        min-width: 50px;
+        font-size: 11px;
+    }
+
+    .file-actions {
+        opacity: 1;
+    }
+
+    /* always visible on touch */
+    .file-name {
+        min-width: 0;
+        font-size: 14px;
     }
 
     .player-bar {

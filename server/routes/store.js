@@ -2,6 +2,93 @@ const express = require('express');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
+
+// Helper: HTTP(S) GET that follows redirects (up to 5)
+function httpsGet(url, maxRedirects = 5) {
+    return new Promise((resolve, reject) => {
+        const proto = url.startsWith('https') ? https : http;
+        proto.get(url, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
+                const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
+                return httpsGet(next, maxRedirects - 1).then(resolve).catch(reject);
+            }
+            if (res.statusCode !== 200) {
+                res.resume();
+                return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+            }
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => resolve(data));
+            res.on('error', reject);
+        }).on('error', reject);
+    });
+}
+
+// Download a file with progress tracking using Node.js built-in https
+function downloadFile(url, dest, dlId, activeDownloads, maxRedirects = 5) {
+    const fileName = path.basename(dest);
+    const proto = url.startsWith('https') ? https : http;
+
+    proto.get(url, (res) => {
+        // Handle redirects
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            res.resume();
+            if (maxRedirects <= 0) {
+                activeDownloads.set(dlId, { status: 'failed', progress: 0, output: 'Too many redirects' });
+                return;
+            }
+            const next = res.headers.location.startsWith('http') ? res.headers.location : new URL(res.headers.location, url).href;
+            return downloadFile(next, dest, dlId, activeDownloads, maxRedirects - 1);
+        }
+
+        if (res.statusCode !== 200) {
+            res.resume();
+            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `HTTP error ${res.statusCode} for ${url}` });
+            return;
+        }
+
+        const totalSize = parseInt(res.headers['content-length'], 10) || 0;
+        let downloaded = 0;
+        const fileStream = fs.createWriteStream(dest);
+
+        res.on('data', (chunk) => {
+            downloaded += chunk.length;
+            const pct = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
+            const dlMB = (downloaded / (1024 * 1024)).toFixed(1);
+            const totalMB = totalSize > 0 ? (totalSize / (1024 * 1024)).toFixed(1) : '?';
+            activeDownloads.set(dlId, {
+                status: 'downloading',
+                progress: pct,
+                output: `${fileName}\n${dlMB} MB / ${totalMB} MB (${pct}%)`
+            });
+        });
+
+        res.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+            fileStream.close();
+            activeDownloads.set(dlId, {
+                status: 'complete', progress: 100,
+                output: `Downloaded: ${fileName}\nSaved to: ${dest}`
+            });
+        });
+
+        fileStream.on('error', (err) => {
+            fs.unlink(dest, () => { });
+            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Write error: ${err.message}` });
+        });
+
+        res.on('error', (err) => {
+            fs.unlink(dest, () => { });
+            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Download error: ${err.message}` });
+        });
+    }).on('error', (err) => {
+        activeDownloads.set(dlId, { status: 'failed', progress: 0, output: `Connection error: ${err.message}` });
+    });
+}
 
 module.exports = function (config) {
     const router = express.Router();
@@ -78,47 +165,40 @@ module.exports = function (config) {
     });
 
     // Discover the latest ZIM file URL from a Kiwix directory listing
-    function discoverZimUrl(dirUrl, pattern) {
-        return new Promise((resolve, reject) => {
-            // Fetch the directory HTML with curl
-            exec(`curl -fsSL "${dirUrl}"`, { timeout: 30000, maxBuffer: 5 * 1024 * 1024 }, (err, stdout) => {
-                if (err) return reject(new Error(`Failed to fetch directory: ${err.message}`));
+    async function discoverZimUrl(dirUrl, pattern) {
+        const html = await httpsGet(dirUrl);
 
-                // Find all .zim file links matching the pattern
-                const regex = new RegExp(`href="(${pattern})"`, 'g');
-                const matches = [];
-                let m;
-                while ((m = regex.exec(stdout)) !== null) {
-                    matches.push(m[1]);
-                }
+        // Find all .zim file links matching the pattern
+        const regex = new RegExp(`href="(${pattern})"`, 'g');
+        const matches = [];
+        let m;
+        while ((m = regex.exec(html)) !== null) {
+            matches.push(m[1]);
+        }
 
-                if (matches.length === 0) {
-                    // Try broader search — just find any .zim matching a simpler pattern
-                    const basePattern = pattern.replace(/\\d\{4\}-\\d\{2\}/g, '');
-                    const simpleRegex = new RegExp(`href="([^"]*\\.zim)"`, 'g');
-                    const allZims = [];
-                    while ((m = simpleRegex.exec(stdout)) !== null) {
-                        allZims.push(m[1]);
-                    }
-                    if (allZims.length === 0) {
-                        return reject(new Error(`No .zim files found at ${dirUrl}`));
-                    }
-                    // Filter by the base name (without date part)
-                    const baseName = pattern.split('\\d')[0].replace(/\\/g, '');
-                    const filtered = allZims.filter(z => z.startsWith(baseName));
-                    if (filtered.length > 0) {
-                        // Sort to get latest (filenames are date-sorted)
-                        filtered.sort();
-                        return resolve(dirUrl + filtered[filtered.length - 1]);
-                    }
-                    return reject(new Error(`No ZIM matching "${baseName}*" at ${dirUrl}. Available: ${allZims.slice(0, 5).join(', ')}`));
-                }
+        if (matches.length === 0) {
+            // Broader search — find all .zim links
+            const simpleRegex = /href="([^"]*\.zim)"/g;
+            const allZims = [];
+            while ((m = simpleRegex.exec(html)) !== null) {
+                allZims.push(m[1]);
+            }
+            if (allZims.length === 0) {
+                throw new Error(`No .zim files found at ${dirUrl}`);
+            }
+            // Filter by the base name (part before the date)
+            const baseName = pattern.split('\\d')[0].replace(/\\/g, '');
+            const filtered = allZims.filter(z => z.startsWith(baseName));
+            if (filtered.length > 0) {
+                filtered.sort();
+                return dirUrl + filtered[filtered.length - 1];
+            }
+            throw new Error(`No ZIM matching "${baseName}*" at ${dirUrl}. Available: ${allZims.slice(0, 5).join(', ')}`);
+        }
 
-                // Sort and pick the latest (last alphabetically = newest date)
-                matches.sort();
-                resolve(dirUrl + matches[matches.length - 1]);
-            });
-        });
+        // Sort and pick the latest (last alphabetically = newest date)
+        matches.sort();
+        return dirUrl + matches[matches.length - 1];
     }
 
     // Download endpoint
@@ -167,49 +247,8 @@ module.exports = function (config) {
                 const dest = path.join(DOWNLOADS_DIR, fileName);
                 activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Downloading: ${fileName}` });
 
-                // Step 2: Download with curl -fL (fail on 404, follow redirects)
-                exec('which curl', (err) => {
-                    const dlCmd = err
-                        ? `wget -c -O "${dest}" "${downloadUrl}" 2>&1`
-                        : `curl -fL -C - -o "${dest}" --progress-bar "${downloadUrl}" 2>&1`;
-
-                    const proc = exec(dlCmd, { timeout: 86400000 }); // 24hr timeout
-                    let output = '';
-                    proc.stdout?.on('data', (d) => {
-                        output += d;
-                        const pctMatch = d.toString().match(/(\d+)%/);
-                        const pct = pctMatch ? parseInt(pctMatch[1]) : activeDownloads.get(dlId)?.progress || 0;
-                        activeDownloads.set(dlId, { status: 'downloading', progress: pct, output: `${fileName}\n${output.slice(-300)}` });
-                    });
-                    proc.stderr?.on('data', (d) => {
-                        output += d;
-                        const pctMatch = d.toString().match(/(\d+(?:\.\d+)?)%/);
-                        const pct = pctMatch ? Math.round(parseFloat(pctMatch[1])) : activeDownloads.get(dlId)?.progress || 0;
-                        activeDownloads.set(dlId, { status: 'downloading', progress: pct, output: `${fileName}\n${output.slice(-300)}` });
-                    });
-                    proc.on('close', (code) => {
-                        if (code === 0) {
-                            // Verify the downloaded file isn't an HTML error page
-                            try {
-                                const stats = fs.statSync(dest);
-                                if (stats.size < 1000) {
-                                    const content = fs.readFileSync(dest, 'utf-8').slice(0, 200);
-                                    if (content.includes('<html') || content.includes('<!DOCTYPE')) {
-                                        fs.unlinkSync(dest);
-                                        activeDownloads.set(dlId, { status: 'failed', progress: 0, output: 'Server returned HTML page instead of ZIM file (404 error)' });
-                                        return;
-                                    }
-                                }
-                            } catch (e) { }
-                            activeDownloads.set(dlId, { status: 'complete', progress: 100, output: `Downloaded: ${fileName}\nSaved to: ${dest}` });
-                        } else {
-                            activeDownloads.set(dlId, {
-                                status: 'failed', progress: 0,
-                                output: `Download failed (exit ${code}).\nURL: ${downloadUrl}\nEnsure curl is installed: pkg install curl`
-                            });
-                        }
-                    });
-                });
+                // Step 2: Download using Node.js built-in https (no curl/wget needed)
+                downloadFile(downloadUrl, dest, dlId, activeDownloads);
 
                 res.json({ success: true, downloadId: dlId, message: `Downloading: ${fileName}` });
 
