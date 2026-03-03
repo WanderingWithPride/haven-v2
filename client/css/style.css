@@ -2011,7 +2011,52 @@ body {
     opacity: 1;
 }
 
+/* Mobile Header (hidden on desktop) */
+.mobile-header {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 150;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+}
+
+.mobile-hamburger {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-hamburger:active {
+    background: var(--surface2);
+}
+
+.mobile-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--cyan);
+    font-weight: 600;
+}
+
 @media (max-width: 768px) {
+    .mobile-header {
+        display: flex;
+    }
+
     .sidebar {
         position: fixed;
         left: calc(-1 * var(--sidebar-width));
@@ -2031,6 +2076,8 @@ body {
     .main-content {
         margin-left: 0;
         width: 100%;
+        padding-top: 56px;
+        /* space for mobile header */
     }
 
     .player-bar {

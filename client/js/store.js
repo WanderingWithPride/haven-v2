@@ -4,6 +4,7 @@
 
 const StoreModule = {
     catalog: [],
+    itemConfigs: {},  // Store configs by ID — avoids inline JSON in onclick
 
     async init() {
         const el = document.getElementById('mod-store');
@@ -39,6 +40,15 @@ const StoreModule = {
                 <div class="store-items">`;
 
             cat.items.forEach(item => {
+                // Store config in JS map — safe from HTML escaping issues
+                this.itemConfigs[item.id] = {
+                    url: item.url || '',
+                    dirUrl: item.dirUrl || '',
+                    pattern: item.pattern || '',
+                    cmd: item.cmd || '',
+                    type: item.type
+                };
+
                 html += `
                     <div class="store-item card">
                         <div class="store-item-header">
@@ -52,10 +62,7 @@ const StoreModule = {
                                 <span class="store-prog-text" id="text-${item.id}"></span>
                             </div>
                             <button class="btn btn-primary" id="btn-${item.id}"
-                                onclick="StoreModule.download('${item.id}', ${JSON.stringify({
-                    url: item.url || '', dirUrl: item.dirUrl || '', pattern: item.pattern || '',
-                    cmd: item.cmd || '', type: item.type
-                }).replace(/"/g, '&quot;')})">
+                                onclick="StoreModule.downloadItem('${item.id}')">
                                 ${item.type === 'manual' ? '🔗 Info' : '⬇ Download'}
                             </button>
                         </div>
@@ -65,6 +72,12 @@ const StoreModule = {
         });
 
         el.innerHTML = html;
+    },
+
+    downloadItem(id) {
+        const config = this.itemConfigs[id];
+        if (!config) { alert('Unknown item'); return; }
+        this.download(id, config);
     },
 
     async download(id, itemConfig) {
