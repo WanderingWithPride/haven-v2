@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CyberDeck</title>
+    <meta name="description" content="CyberDeck - Your self-hosted media hub, knowledge base, and file manager">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Leaflet for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- EPUB.js for Ebook Reader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js"></script>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">CyberDeck</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰</button>
+        </div>
+        <div class="nav-items">
+            <button class="nav-item active" data-module="music" onclick="switchModule('music')">
+                <span class="nav-icon">🎵</span>
+                <span class="nav-label">Music</span>
+            </button>
+            <button class="nav-item" data-module="photos" onclick="switchModule('photos')">
+                <span class="nav-icon">📸</span>
+                <span class="nav-label">Photos</span>
+            </button>
+            <button class="nav-item" data-module="videos" onclick="switchModule('videos')">
+                <span class="nav-icon">🎬</span>
+                <span class="nav-label">Videos</span>
+            </button>
+            <button class="nav-item" data-module="llm" onclick="switchModule('llm')">
+                <span class="nav-icon">🤖</span>
+                <span class="nav-label">AI Chat</span>
+            </button>
+            <button class="nav-item" data-module="wiki" onclick="switchModule('wiki')">
+                <span class="nav-icon">📚</span>
+                <span class="nav-label">Wikipedia</span>
+            </button>
+            <button class="nav-item" data-module="maps" onclick="switchModule('maps')">
+                <span class="nav-icon">🗺️</span>
+                <span class="nav-label">Maps</span>
+            </button>
+            <button class="nav-item" data-module="ebooks" onclick="switchModule('ebooks')">
+                <span class="nav-icon">📖</span>
+                <span class="nav-label">Ebooks</span>
+            </button>
+            <button class="nav-item" data-module="files" onclick="switchModule('files')">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">Files</span>
+            </button>
+        </div>
+        <div class="sidebar-footer">
+            <div class="connection-status" id="connStatus">
+                <span class="conn-dot"></span>
+                <span class="conn-text">Connected</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Module containers -->
+        <div class="module active" id="mod-music"></div>
+        <div class="module" id="mod-photos"></div>
+        <div class="module" id="mod-videos"></div>
+        <div class="module" id="mod-llm"></div>
+        <div class="module" id="mod-wiki"></div>
+        <div class="module" id="mod-maps"></div>
+        <div class="module" id="mod-ebooks"></div>
+        <div class="module" id="mod-files"></div>
+    </main>
+
+    <!-- Music Player Bar (persistent at bottom) -->
+    <div class="player-bar" id="playerBar" style="display:none">
+        <div class="player-track-info">
+            <div class="player-cover" id="playerCover"></div>
+            <div class="player-meta">
+                <div class="player-title" id="playerTitle">—</div>
+                <div class="player-artist" id="playerArtist">—</div>
+            </div>
+        </div>
+        <div class="player-controls">
+            <button class="player-btn" onclick="MusicPlayer.prev()">⏮</button>
+            <button class="player-btn play-btn" id="playBtn" onclick="MusicPlayer.toggle()">▶</button>
+            <button class="player-btn" onclick="MusicPlayer.next()">⏭</button>
+        </div>
+        <div class="player-progress-area">
+            <span class="player-time" id="playerCurrentTime">0:00</span>
+            <div class="player-progress" id="playerProgress" onclick="MusicPlayer.seek(event)">
+                <div class="player-progress-fill" id="playerProgressFill"></div>
+            </div>
+            <span class="player-time" id="playerDuration">0:00</span>
+        </div>
+        <div class="player-volume">
+            <span class="vol-icon" onclick="MusicPlayer.toggleMute()">🔊</span>
+            <input type="range" min="0" max="1" step="0.01" value="1" class="vol-slider" id="volSlider"
+                oninput="MusicPlayer.setVolume(this.value)">
+        </div>
+    </div>
+
+    <!-- Audio element -->
+    <audio id="audioElement" preload="auto"></audio>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    <script src="js/music.js"></script>
+    <script src="js/photos.js"></script>
+    <script src="js/videos.js"></script>
+    <script src="js/llm.js"></script>
+    <script src="js/wiki.js"></script>
+    <script src="js/maps.js"></script>
+    <script src="js/ebooks.js"></script>
+    <script src="js/files.js"></script>
+</body>
+
+</html>

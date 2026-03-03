@@ -1,0 +1,36 @@
+{
+    "port": 8888,
+    "paths": {
+        "music": "/sdcard/Music",
+        "photos": "/sdcard/DCIM",
+        "videos": "/sdcard/Movies",
+        "ebooks": "/sdcard/Books",
+        "root": "/sdcard"
+    },
+    "services": {
+        "ollama": {
+            "port": 11434,
+            "enabled": true,
+            "defaultModel": "tinyllama"
+        },
+        "kiwix": {
+            "port": 8889,
+            "enabled": true,
+            "zimFile": ""
+        },
+        "maps": {
+            "tilesPath": "",
+            "enabled": false,
+            "defaultCenter": [
+                20.5937,
+                78.9629
+            ],
+            "defaultZoom": 5
+        }
+    },
+    "thumbnails": {
+        "size": 300,
+        "quality": 80,
+        "cachePath": ".cache/thumbnails"
+    }
+}
