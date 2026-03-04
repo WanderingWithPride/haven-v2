@@ -16,6 +16,43 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Captive Portal Interception ("Offline Dead Drop" Mode)
+// When devices connect to the Wi-Fi hotspot, they ping these URLs to check for internet access.
+// By returning a 302 redirect, the OS automatically prompts the user to "Sign in to network" 
+// and opens the CyberDeck dashboard.
+app.use((req, res, next) => {
+    const captivePaths = [
+        '/generate_204',               // Android / Chrome
+        '/gen_204',                    // Android
+        '/hotspot-detect.html',        // iOS / Apple
+        '/ncsi.txt',                   // Windows 8/10
+        '/connecttest.txt',            // Windows 11
+        '/redirect',                   // Various
+        '/success.txt'                 // Various
+    ];
+
+    const host = req.get('host') || '';
+    const lanIP = getLanIP(); // Hoisted function from bottom of file
+    const port = config.port || 8888;
+    const targetUrl = `http://${lanIP}:${port}/`;
+
+    // 1. Intercept specific detection endpoints
+    if (captivePaths.includes(req.path)) {
+        console.log(`[Captive Portal] Intercepted check from ${req.ip} (${req.path})`);
+        return res.redirect(302, targetUrl);
+    }
+
+    // 2. Catch-all: If our server receives a request for an external domain 
+    // (e.g. via DNS hijacking/hotspot routing), redirect to CyberDeck.
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(lanIP) || host.includes(`:${port}`);
+    if (host && !isLocal) {
+        console.log(`[Captive Portal] Redirecting external host request: ${host}`);
+        return res.redirect(302, targetUrl);
+    }
+
+    next();
+});
+
 // Serve client app at root
 app.use('/', express.static(path.join(__dirname, '..', 'client')));
 
