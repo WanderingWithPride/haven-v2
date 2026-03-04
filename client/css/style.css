@@ -101,7 +101,7 @@ body {
     flex-direction: column;
     transition: width var(--transition);
     flex-shrink: 0;
-    z-index: 100;
+    z-index: 9999;
     position: relative;
 }
 
@@ -2008,7 +2008,7 @@ body {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 199;
+    z-index: 9998;
     opacity: 0;
     transition: opacity 0.3s;
 }
@@ -2028,7 +2028,7 @@ body {
     height: 48px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    z-index: 150;
+    z-index: 9997;
     align-items: center;
     padding: 0 16px;
     gap: 12px;
@@ -2071,7 +2071,7 @@ body {
         height: 100vh;
         height: 100dvh;
         /* dynamic viewport height — accounts for mobile browser chrome */
-        z-index: 200;
+        z-index: 9999;
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
         transition: left 0.3s ease;
     }

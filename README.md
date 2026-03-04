@@ -30,24 +30,41 @@ A **self-hosted survival/utility platform** that turns your Android phone (or an
 | 📦 **Store** | Built-in downloader to easily grab LLM models (via Ollama) and knowledge packs (ZIM files via Kiwix) with cancel/delete support. |
 | 🔋 **Power** | System monitor showing CPU load, RAM usage, storage space, battery level, internal temperature, and active service status. |
 
-## 🚀 Quick Start (Termux / Android)
+## 🚀 Quick Start (Installation)
 
-The ideal setup is running CyberDeck on an old or spare Android phone using Termux, acting as a portable survival server.
+CyberDeck works on any device running Node.js. Choose your platform:
 
+### Option 1: Android (via Termux) - *Ideal portable survival server*
 ```bash
 # 1. Install Termux and Termux:API from F-Droid (not Play Store)
-# 2. Update packages and install git/nodejs
+# 2. Update packages and install git
 pkg update && pkg upgrade
-pkg install git nodejs termux-api
+pkg install git
 
-# 3. Clone the repository
+# 3. Clone and run setup
 git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck/server
+bash setup.sh
+```
 
-# 4. Install dependencies
-npm install
+### Option 2: Linux (Ubuntu/Debian, Fedora, Arch)
+```bash
+git clone https://github.com/sarogamedev/CyberDeck.git
+cd CyberDeck/server
+sudo bash setup-linux.sh
+```
 
-# 5. Start the server
+### Option 3: Windows (PowerShell)
+```powershell
+git clone https://github.com/sarogamedev/CyberDeck.git
+cd CyberDeck\server
+# Run as Administrator for automatic dependency installation
+.\setup-windows.ps1
+```
+
+### Starting the Server
+Once setup is complete on any OS, start the server with:
+```bash
 node server.js
 ```
 
