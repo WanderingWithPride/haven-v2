@@ -32,22 +32,23 @@ app.use((req, res, next) => {
     ];
 
     const host = req.get('host') || '';
-    const lanIP = getLanIP(); // Hoisted function from bottom of file
-    const port = config.port || 8888;
-    const targetUrl = `http://${lanIP}:${port}/`;
 
     // 1. Intercept specific detection endpoints
     if (captivePaths.includes(req.path)) {
-        console.log(`[Captive Portal] Intercepted check from ${req.ip} (${req.path})`);
-        return res.redirect(302, targetUrl);
+        console.log(`[Captive Portal] Intercepted check from ${req.ip} (${host}${req.path})`);
+        // Redirect to the root of whatever IP the client used to reach us
+        return res.redirect(302, '/');
     }
 
     // 2. Catch-all: If our server receives a request for an external domain 
-    // (e.g. via DNS hijacking/hotspot routing), redirect to CyberDeck.
-    const isLocal = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(lanIP) || host.includes(`:${port}`);
-    if (host && !isLocal) {
+    // (e.g. DNS hijacking) but NOT a direct IP access, redirect to CyberDeck.
+    // We check if it's an IP address by looking for entirely numbers and dots (or IPv6 colons).
+    const isIpAddress = /^[:0-9.]+$/.test(host.split(':')[0]);
+    const isLocalhost = host.includes('localhost');
+
+    if (host && !isIpAddress && !isLocalhost) {
         console.log(`[Captive Portal] Redirecting external host request: ${host}`);
-        return res.redirect(302, targetUrl);
+        return res.redirect(302, '/');
     }
 
     next();
