@@ -40,14 +40,7 @@ module.exports = function (config) {
             return res.status(404).end();
         }
 
-<<<<<<< Updated upstream
         // Resolve to absolute path (relative paths are resolved from server/ dir)
-=======
-<<<<<<< HEAD
-=======
-        // Resolve to absolute path (relative paths are resolved from server/ dir)
->>>>>>> d0d632515a613041296c0a9876b11c50e959cbfa
->>>>>>> Stashed changes
         const absDir = resolveMapPath(tilesDir);
 
         const possiblePaths = [
