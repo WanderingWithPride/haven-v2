@@ -25,7 +25,9 @@ module.exports = function (config) {
 
     // Serve local tiles if available
     router.get('/tiles/:z/:x/:y', (req, res) => {
-        const { z, x, y } = req.params;
+        const { z, x } = req.params;
+        // Strip extension from y — Leaflet sends "{y}.png" so :y captures "5.png"
+        const y = req.params.y.replace(/\.[^.]+$/, '');
         const tilesDir = config.services.maps.tilesPath;
 
         if (!tilesDir) {
