@@ -7,14 +7,18 @@ module.exports = function (config) {
 
     // Get map configuration
     router.get('/config', (req, res) => {
+        const tilesDir = config.services.maps.tilesPath;
+        const hasOfflineTiles = !!(tilesDir && fs.existsSync(tilesDir));
+
         res.json({
             enabled: config.services.maps.enabled,
+            hasOfflineTiles,
             defaultCenter: config.services.maps.defaultCenter || [20.5937, 78.9629],
             defaultZoom: config.services.maps.defaultZoom || 5,
-            tilesPath: config.services.maps.tilesPath || '',
-            tileUrl: config.services.maps.tilesPath
-                ? '/api/maps/tiles/{z}/{x}/{y}.png'
-                : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            tilesPath: tilesDir || '',
+            onlineTileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            offlineTileUrl: hasOfflineTiles ? '/api/maps/tiles/{z}/{x}/{y}.png' : '',
+            tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // Always default to online
             attribution: '© OpenStreetMap contributors'
         });
     });
@@ -28,21 +32,25 @@ module.exports = function (config) {
             return res.status(404).json({ error: 'No local tiles configured' });
         }
 
+        // Resolve to absolute path
+        const absDir = path.resolve(tilesDir);
+
         // Try common tile directory structures
         const possiblePaths = [
-            path.join(tilesDir, z, x, `${y}.png`),
-            path.join(tilesDir, z, x, `${y}.jpg`),
-            path.join(tilesDir, z, x, `${y}.webp`),
-            path.join(tilesDir, `${z}_${x}_${y}.png`)
+            path.join(absDir, z, x, `${y}.png`),
+            path.join(absDir, z, x, `${y}.jpg`),
+            path.join(absDir, z, x, `${y}.webp`),
+            path.join(absDir, `${z}_${x}_${y}.png`)
         ];
 
         for (const tilePath of possiblePaths) {
             if (fs.existsSync(tilePath)) {
                 res.set('Cache-Control', 'public, max-age=604800');
-                return res.sendFile(tilePath);
+                return res.sendFile(path.resolve(tilePath));
             }
         }
 
+        // Fall back: proxy from OSM if we don't have the tile locally
         res.status(404).json({ error: 'Tile not found' });
     });
 
@@ -86,7 +94,7 @@ module.exports = function (config) {
         }
 
         const dlId = Date.now().toString();
-        const destDir = config.services.maps.tilesPath || path.join(__dirname, '..', 'downloads', 'maps');
+        const destDir = path.resolve(config.services.maps.tilesPath || path.join(__dirname, '..', 'downloads', 'maps'));
 
         // Calculate required tiles
         const tiles = [];

@@ -50,17 +50,25 @@ const MapsModule = {
             const config = await res.json();
 
             this.currentConfig = config;
-            this.baseTileUrl = config.tileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-            this.onlineTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-            this.forceOnline = false;
+            this.onlineTileUrl = config.onlineTileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+            this.offlineTileUrl = config.offlineTileUrl || '';
+            this.isOffline = false; // Always start online
 
-            document.getElementById('mapStatus').textContent =
-                config.enabled && config.tileUrl ? 'Offline tiles loaded' : 'Using online tiles (OSM)';
+            // Show/hide the toggle button based on whether offline tiles exist
+            const toggleBtn = document.getElementById('btn-toggle-maps');
+            if (config.hasOfflineTiles) {
+                toggleBtn.style.display = '';
+                toggleBtn.textContent = '📵 Use Offline Maps';
+            } else {
+                toggleBtn.style.display = 'none';
+            }
 
-            // Initialize Leaflet
+            document.getElementById('mapStatus').textContent = 'Using online tiles (OSM)';
+
+            // Initialize Leaflet — always start with online tiles
             this.map = L.map('mapContainer').setView(config.defaultCenter || [20.5937, 78.9629], config.defaultZoom || 5);
 
-            this.tileLayer = L.tileLayer(this.baseTileUrl, {
+            this.tileLayer = L.tileLayer(this.onlineTileUrl, {
                 attribution: config.attribution || '© OpenStreetMap contributors',
                 maxZoom: 19,
                 errorTileUrl: ''
@@ -73,7 +81,7 @@ const MapsModule = {
 
             // Fallback: use OSM directly
             this.map = L.map('mapContainer').setView([20.5937, 78.9629], 5);
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            this.tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
             }).addTo(this.map);
@@ -83,16 +91,17 @@ const MapsModule = {
 
     toggleOnline() {
         if (!this.tileLayer) return;
-        this.forceOnline = !this.forceOnline;
+        this.isOffline = !this.isOffline;
 
-        if (this.forceOnline) {
-            this.tileLayer.setUrl(this.onlineTileUrl);
-            document.getElementById('mapStatus').textContent = 'Using online tiles (Forced)';
-            document.getElementById('btn-toggle-maps').textContent = '📵 Use Offline Maps';
+        if (this.isOffline && this.offlineTileUrl) {
+            this.tileLayer.setUrl(this.offlineTileUrl);
+            document.getElementById('mapStatus').textContent = 'Using offline tiles';
+            document.getElementById('btn-toggle-maps').textContent = '🌍 Use Online Maps';
         } else {
-            this.tileLayer.setUrl(this.baseTileUrl);
-            document.getElementById('mapStatus').textContent = (this.currentConfig.enabled && this.currentConfig.tileUrl) ? 'Offline tiles loaded' : 'Using online tiles (OSM)';
-            document.getElementById('btn-toggle-maps').textContent = '🌍 Enable Online Maps';
+            this.isOffline = false;
+            this.tileLayer.setUrl(this.onlineTileUrl);
+            document.getElementById('mapStatus').textContent = 'Using online tiles (OSM)';
+            document.getElementById('btn-toggle-maps').textContent = '📵 Use Offline Maps';
         }
     },
 
@@ -174,11 +183,22 @@ const MapsModule = {
                 document.getElementById('btn-dl-map').disabled = false;
                 document.getElementById('btn-dl-map').textContent = '📥 Download Region';
 
-                // Reload map and hide the progress bar after 2 seconds
-                setTimeout(() => {
+                // Hide progress bar and show toggle button after 2 seconds (stay on online tiles)
+                setTimeout(async () => {
                     this.activeDlId = null;
                     document.getElementById('mapDlProgress').style.display = 'none';
-                    this.loadMap();
+
+                    // Re-fetch config to pick up the new offlineTileUrl
+                    try {
+                        const cfgRes = await authFetch(`${API}/api/maps/config`);
+                        const cfg = await cfgRes.json();
+                        this.offlineTileUrl = cfg.offlineTileUrl || '';
+                        if (cfg.hasOfflineTiles) {
+                            const toggleBtn = document.getElementById('btn-toggle-maps');
+                            toggleBtn.style.display = '';
+                            toggleBtn.textContent = '📵 Use Offline Maps';
+                        }
+                    } catch (e) { }
                 }, 2000);
             } else if (data.status === 'error') {
                 fill.style.background = 'var(--red)';
