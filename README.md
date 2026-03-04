@@ -39,7 +39,7 @@ CyberDeck works on any device running Node.js. Choose your platform:
 # 1. Install Termux and Termux:API from F-Droid (not Play Store)
 # 2. Update packages and install git
 pkg update && pkg upgrade
-pkg install git
+pkg install git Termux:API
 
 # 3. Clone and run setup
 git clone https://github.com/sarogamedev/CyberDeck.git
@@ -73,12 +73,12 @@ Open that IP on any device connected to the same Wi-Fi network:
 - **Client App**: `http://<phone-ip>:8888`
 - **Admin Panel**: `http://<phone-ip>:8888/admin`
 
-*(Note: CyberDeck uses a default PIN `1234` for first-time access. Change this immediately in the Admin Panel).*
+*(Note: CyberDeck uses a default username `admin` and password `cyberdeck` for first-time access. Change this immediately in the Admin Panel).*
 
 ## 🔌 Admin Panel (`/admin`)
 
 Access the admin dashboard to manage your CyberDeck node:
-- **Security**: Change the access PIN.
+- **Security**: Change the access username and password.
 - **Service Management**: Start/stop background services (Ollama, Kiwix).
 - **Library Scanning**: Force rescan of Music, Photos, Videos, and Ebooks directories.
 - **Configuration**: Change default directory paths (`/sdcard/Music`, etc.).
