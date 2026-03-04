@@ -9,14 +9,14 @@ A **self-hosted survival/utility platform** that turns your Android phone (or an
 |--------|-------------|
 | 🤖 **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses. |
 | 📚 **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
-| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking. |
+| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Map Tile Downloader**. Select a region to sync vector tiles locally. |
 | 📖 **Ebooks** | EPUB reader (epub.js) and PDF viewer. Remembers reading progress. |
 | 🛡️ **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation) modeled after FM 21-76. |
 
 ### Media & Storage
 | Module | Description |
 |--------|-------------|
-| 📁 **Files** | Full file manager. Browse, upload, download, and delete files on the host device. |
+| 📁 **Files** | Full file manager. Browse, upload, download, and delete files. Features **WebRTC P2P Sharing** to transfer files directly to other users on the LAN without touching the server. |
 | 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art extraction, visualizer, and persistent queue. |
 | 📸 **Photos** | Photo gallery with lazy-loaded thumbnails, date grouping, EXIF data, and lightbox viewer. |
 | 🎬 **Videos** | Stream videos with range-request seeking and fullscreen support. |
@@ -27,8 +27,9 @@ A **self-hosted survival/utility platform** that turns your Android phone (or an
 |--------|-------------|
 | 🛠️ **Utilities** | Built-in tools: Compass, Calculator, Unit Converter, Morse Code generator, Flashlight toggle, Coordinates. |
 | 📡 **LAN Chat** | Local area network chat room using WebSockets. Works entirely offline across devices on the same Wi-Fi. |
-| 📦 **Store** | Built-in downloader to easily grab LLM models (via Ollama) and knowledge packs (ZIM files via Kiwix) with cancel/delete support. |
+| 📦 **Store** | Built-in downloader to easily grab LLM models and knowledge packs. Features a robust **background downloader** with HTTP Range Pause/Resume support. |
 | 🔋 **Power** | System monitor showing CPU load, RAM usage, storage space, battery level, internal temperature, and active service status. |
+| 📱 **PWA Ready** | **Progressive Web App** architecture. Install CyberDeck to your device's home screen and cache the UI shell for immediate offline loading. |
 
 ## 🚀 Quick Start (Installation)
 
@@ -108,10 +109,11 @@ Access the admin dashboard to manage your CyberDeck node:
 3. Upload files. They are encrypted *in your browser* before being sent to the server.
 4. To view/download, the file is fetched encrypted and decrypted locally in your browser memory.
 
-### LAN Chat
-1. Open the **LAN Chat** module.
-2. Enter a username.
-3. Anyone else on the network who connects to your CyberDeck IP and opens LAN chat will instantly join the room. No internet required.
+### LAN Chat & WebRTC P2P Sharing
+1. Open the **LAN Chat** module and enter a username. Anyone else on the network who connects will instantly join the room.
+2. To share a file directly with another user without using server storage, go to the **Files** app.
+3. Next to any local file, click the `📡` (P2P Share) icon.
+4. Select a user from the dropdown at the top to establish a direct WebRTC connection and transfer the file peer-to-peer.
 
 ## 🏗️ Architecture
 

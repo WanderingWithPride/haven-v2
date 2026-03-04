@@ -95,6 +95,14 @@ const ChatModule = {
                 this.users = msg.users;
                 const countEl = document.getElementById('chatUserCount');
                 if (countEl) countEl.textContent = `${msg.count} online`;
+                if (window.P2PModule) window.P2PModule.updateUsers(msg.users);
+                break;
+
+            case 'webrtc-offer':
+            case 'webrtc-answer':
+            case 'webrtc-ice':
+            case 'webrtc-decline':
+                if (window.P2PModule) window.P2PModule.handleSignal(msg);
                 break;
         }
     },

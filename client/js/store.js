@@ -63,11 +63,15 @@ const StoreModule = {
                                 <div class="power-bar"><div class="power-bar-fill" id="fill-${item.id}"></div></div>
                                 <span class="store-prog-text" id="text-${item.id}"></span>
                             </div>
-                            <div style="display:flex;gap:6px;align-items:center">
+                            <div style="display:flex;gap:6px;align-items:center flex-wrap:wrap;">
                                 <button class="btn btn-primary" id="btn-${item.id}"
                                     onclick="StoreModule.downloadItem('${item.id}')">
                                     ${item.type === 'manual' ? '🔗 Info' : '⬇ Download'}
                                 </button>
+                                <button class="btn" id="revoke-${item.id}" style="display:none;background:var(--surface2);color:#fff;font-size:12px"
+                                    onclick="StoreModule.pauseDownload('${item.id}')">⏸ Pause</button>
+                                <button class="btn" id="resume-${item.id}" style="display:none;background:var(--green);color:#000;font-size:12px"
+                                    onclick="StoreModule.resumeDownload('${item.id}')">▶ Resume</button>
                                 <button class="btn" id="cancel-${item.id}" style="display:none;background:var(--red);color:#fff;padding:6px 10px;font-size:12px"
                                     onclick="StoreModule.cancelDownload('${item.id}')">✕ Cancel</button>
                                 <button class="btn" id="delete-${item.id}" style="display:none;background:var(--surface2);color:var(--red);border:1px solid var(--red);padding:6px 10px;font-size:12px"
@@ -165,17 +169,39 @@ const StoreModule = {
         }
     },
 
+    async pauseDownload(id) {
+        try {
+            await authFetch(`${API}/api/store/pause/${id}`, { method: 'POST' });
+        } catch (e) {
+            alert('Pause failed: ' + e.message);
+        }
+    },
+
+    async resumeDownload(id) {
+        try {
+            await authFetch(`${API}/api/store/resume/${id}`, { method: 'POST' });
+            this.pollProgress(id); // Restart polling
+        } catch (e) {
+            alert('Resume failed: ' + e.message);
+        }
+    },
+
     async cancelDownload(id) {
         if (!confirm('Cancel this download?')) return;
         try {
             await authFetch(`${API}/api/store/cancel/${id}`, { method: 'POST' });
             const btn = document.getElementById(`btn-${id}`);
             const cancelBtn = document.getElementById(`cancel-${id}`);
+            const pauseBtn = document.getElementById(`revoke-${id}`);
+            const resumeBtn = document.getElementById(`resume-${id}`);
             const prog = document.getElementById(`prog-${id}`);
             const fill = document.getElementById(`fill-${id}`);
             const text = document.getElementById(`text-${id}`);
+
             if (btn) { btn.textContent = '⬇ Download'; btn.disabled = false; }
             if (cancelBtn) cancelBtn.style.display = 'none';
+            if (pauseBtn) pauseBtn.style.display = 'none';
+            if (resumeBtn) resumeBtn.style.display = 'none';
             if (fill) { fill.style.width = '0%'; fill.style.background = ''; }
             if (text) text.textContent = '';
             if (prog) prog.style.display = 'none';
@@ -211,6 +237,9 @@ const StoreModule = {
         const btn = document.getElementById(`btn-${id}`);
         const cancelBtn = document.getElementById(`cancel-${id}`);
         const deleteBtn = document.getElementById(`delete-${id}`);
+        const pauseBtn = document.getElementById(`revoke-${id}`);
+        const resumeBtn = document.getElementById(`resume-${id}`);
+        const mdItemType = this.itemConfigs[id]?.type;
 
         const check = async () => {
             try {
@@ -227,7 +256,18 @@ const StoreModule = {
                     text.textContent = data.progress + '%';
                     btn.textContent = '⏳ ' + data.progress + '%';
                     if (cancelBtn) cancelBtn.style.display = 'inline-block';
+                    if (pauseBtn && mdItemType === 'zim') pauseBtn.style.display = 'inline-block';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
                     setTimeout(check, 2000);
+                } else if (data.status === 'paused') {
+                    fill.style.background = 'var(--surface2)';
+                    fill.style.width = data.progress + '%';
+                    text.textContent = data.progress + '% (Paused)';
+                    btn.textContent = '⏸ Paused';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'inline-block';
+                    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+                    // We don't loop here. Resume will restart polling.
                 } else if (data.status === 'complete') {
                     fill.style.width = '100%';
                     fill.style.background = 'var(--green)';
@@ -235,6 +275,8 @@ const StoreModule = {
                     btn.textContent = '✅ Done';
                     btn.disabled = true;
                     if (cancelBtn) cancelBtn.style.display = 'none';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
                     if (deleteBtn) deleteBtn.style.display = 'inline-block';
                 } else if (data.status === 'failed') {
                     fill.style.width = '100%';
@@ -243,10 +285,11 @@ const StoreModule = {
                     btn.textContent = '⬇ Retry';
                     btn.disabled = false;
                     if (cancelBtn) cancelBtn.style.display = 'none';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
                     if (data.output) alert('Download failed:\n' + data.output);
                 } else if (data.status === 'cancelled') {
                     // Already handled in cancelDownload
-                    if (cancelBtn) cancelBtn.style.display = 'none';
                 } else {
                     setTimeout(check, 3000);
                 }

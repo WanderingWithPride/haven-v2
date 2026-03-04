@@ -92,16 +92,52 @@ const WikiModule = {
                 <div class="wiki-article">${data.html}</div>
             `;
 
-            // Make internal links work
-            el.querySelectorAll('.wiki-article a').forEach(a => {
-                const href = a.getAttribute('href');
-                if (href && href.startsWith('/api/wiki/article/')) {
-                    a.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const articlePath = href.replace('/api/wiki/article/', '');
-                        WikiModule.loadArticle(articlePath);
-                    });
+            const articleEl = el.querySelector('.wiki-article');
+            const apiBase = API || window.location.origin;
+            const reqBaseUrl = new URL(`${apiBase}/api/wiki/asset/${path}`);
+            const linkBaseUrl = new URL(`${apiBase}/api/wiki/article/${path}`);
+
+            // Fix all assets (images, stylesheets, videos)
+            articleEl.querySelectorAll('img, source, link[rel="stylesheet"]').forEach(node => {
+                const attr = node.tagName === 'LINK' ? 'href' : 'src';
+                let val = node.getAttribute(attr);
+                if (!val || val.startsWith('http') || val.startsWith('data:')) return;
+
+                if (val.startsWith('/')) {
+                    // Root absolute path from kiwix-serve
+                    node.setAttribute(attr, `${apiBase}/api/wiki/asset${val}`);
+                } else {
+                    // Relative ZIM path (like ../I/m/math.png)
+                    const resolved = new URL(val, reqBaseUrl);
+                    node.setAttribute(attr, resolved.href);
                 }
+            });
+
+            // Make internal links work and intercept clicks
+            articleEl.querySelectorAll('a').forEach(a => {
+                let val = a.getAttribute('href');
+                if (!val || val.startsWith('http') || val.startsWith('javascript:') || val.startsWith('#')) return;
+
+                let finalUrl;
+                if (val.startsWith('/')) {
+                    finalUrl = `${apiBase}/api/wiki/article${val}`;
+                } else {
+                    const resolved = new URL(val, linkBaseUrl);
+                    finalUrl = resolved.href;
+                }
+
+                a.setAttribute('href', finalUrl);
+
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Intercept and route internally
+                    const destUrl = new URL(finalUrl);
+                    const destPathSplit = destUrl.pathname.split('/api/wiki/article/');
+                    if (destPathSplit.length > 1) {
+                        const nextPath = destPathSplit[1];
+                        WikiModule.loadArticle(nextPath + destUrl.search + destUrl.hash);
+                    }
+                });
             });
         } catch (err) {
             el.innerHTML = `

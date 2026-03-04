@@ -14,7 +14,10 @@ const FilesModule = {
                     <div class="module-title">File Manager</div>
                     <div class="module-subtitle" id="filesPath">/</div>
                 </div>
-                <div style="display:flex;gap:8px">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <select id="p2pUserSelect" class="chat-input" style="padding:4px 8px;width:140px;font-size:12px">
+                        <option value="">Select recipient...</option>
+                    </select>
                     <button class="btn" onclick="FilesModule.createFolder()">📁 New Folder</button>
                     <label class="btn" style="cursor:pointer">
                         📤 Upload
@@ -107,8 +110,9 @@ const FilesModule = {
                     <span class="file-size">${item.sizeFormatted || ''}</span>
                     <span class="file-date">${item.modified ? formatDate(item.modified) : ''}</span>
                     <div class="file-actions">
-                        ${!item.isDirectory ? `<button class="file-action-btn" onclick="event.stopPropagation(); FilesModule.download('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}')">⬇</button>` : ''}
-                        <button class="file-action-btn" onclick="event.stopPropagation(); FilesModule.deleteItem('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">🗑</button>
+                        ${!item.isDirectory ? `<button class="file-action-btn" title="Share P2P" onclick="event.stopPropagation(); FilesModule.shareP2P('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">📡</button>` : ''}
+                        ${!item.isDirectory ? `<button class="file-action-btn" title="Download" onclick="event.stopPropagation(); FilesModule.download('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}')">⬇</button>` : ''}
+                        <button class="file-action-btn" title="Delete" onclick="event.stopPropagation(); FilesModule.deleteItem('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">🗑</button>
                     </div>
                 </div>`;
         });
@@ -119,6 +123,44 @@ const FilesModule = {
     download(filePath) {
         const token = Auth.token ? `&token=${encodeURIComponent(Auth.token)}` : '';
         window.open(`${API}/api/files/download?path=${encodeURIComponent(filePath)}${token}`, '_blank');
+    },
+
+    async shareP2P(filePath, fileName) {
+        if (!window.P2PModule) {
+            alert('P2P module is not loaded.');
+            return;
+        }
+
+        const select = document.getElementById('p2pUserSelect');
+        const targetUser = select ? select.value : '';
+
+        if (!targetUser) {
+            alert('Please select a recipient from the dropdown in the top bar first!\nThe recipient must be online in LAN Chat.');
+            return;
+        }
+
+        // We need a File object to send via DataChannel using FileReader.
+        // Because of browser security, we can't just fetch a local file directly into a File object without memory bloat or user interaction.
+        // We will prompt the user to pick the file they just clicked
+        // OR we can fetch it via the API and send it as a blob. Let's fetch it via API instead of making them use a file picker.
+
+        try {
+            alert(`Ready to send ${fileName} to ${targetUser}.\n\nClick OK to build the payload and transmit.`);
+            P2PModule.updateP2PProgress(null, 0, 'Buffering local file...', fileName);
+
+            const token = Auth.token ? `&token=${encodeURIComponent(Auth.token)}` : '';
+            const res = await fetch(`${API}/api/files/download?path=${encodeURIComponent(filePath)}${token}`);
+            if (!res.ok) throw new Error('Failed to read file from server');
+
+            const blob = await res.blob();
+            // Convert blob to File object to reuse P2PModule logic seamlessly
+            const fileObj = new File([blob], fileName, { type: blob.type });
+
+            await P2PModule.startP2PShare(fileObj, targetUser);
+        } catch (err) {
+            alert('P2P Share initialization failed: ' + err.message);
+            P2PModule.hideP2PProgress();
+        }
     },
 
     previewFile(filePath, ext) {

@@ -53,6 +53,25 @@ module.exports = function setupChat(server) {
                         };
                         broadcast(alert);
                         break;
+
+                    // WebRTC P2P Signaling Relay
+                    case 'webrtc-offer':
+                    case 'webrtc-answer':
+                    case 'webrtc-ice':
+                    case 'webrtc-decline':
+                        // Simply relay the signal to everyone (or specific target if msg.target exists)
+                        // In a production app you'd route directly to msg.target, but broadcasting 
+                        // on a small LAN is sufficient and the target client will filter it.
+                        broadcast({
+                            type: msg.type,
+                            from: username,
+                            target: msg.target, // The intended recipient
+                            fileName: msg.fileName,
+                            fileSize: msg.fileSize,
+                            sdp: msg.sdp,
+                            candidate: msg.candidate
+                        });
+                        break;
                 }
             } catch (err) {
                 console.error('Chat error:', err.message);

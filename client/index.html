@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CyberDeck</title>
     <meta name="description" content="CyberDeck - Your self-hosted media hub, knowledge base, and file manager">
-    <meta name="theme-color" content="#0a0a0f">
+    <meta name="theme-color" content="#06060b">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
     <!-- Leaflet for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -195,8 +196,24 @@
     <script src="js/utilities.js"></script>
     <script src="js/vault.js"></script>
     <script src="js/chat.js"></script>
+    <script src="js/p2p.js"></script>
     <script src="js/power.js"></script>
     <script src="js/store.js"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </body>
 
 </html>

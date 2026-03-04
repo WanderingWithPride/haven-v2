@@ -27,12 +27,25 @@ function httpsGet(url, maxRedirects = 5) {
     });
 }
 
-// Download a file with progress tracking using Node.js built-in https
+// Download a file with progress tracking and pause/resume support
 function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedirects = 5) {
     const fileName = path.basename(dest);
     const proto = url.startsWith('https') ? https : http;
 
-    const req = proto.get(url, (res) => {
+    // Check existing file size for resuming
+    let startByte = 0;
+    if (fs.existsSync(dest)) {
+        startByte = fs.statSync(dest).size;
+    }
+
+    const options = {
+        headers: {}
+    };
+    if (startByte > 0) {
+        options.headers['Range'] = `bytes=${startByte}-`;
+    }
+
+    const req = proto.get(url, options, (res) => {
         // Handle redirects
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             res.resume();
@@ -44,15 +57,36 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
             return downloadFile(next, dest, dlId, activeDownloads, activeProcesses, maxRedirects - 1);
         }
 
-        if (res.statusCode !== 200) {
+        // 416 means Range Not Satisfiable (file is already fully downloaded based on our startByte)
+        if (res.statusCode === 416) {
+            res.resume();
+            activeProcesses.delete(dlId);
+            activeDownloads.set(dlId, {
+                ...activeDownloads.get(dlId),
+                status: 'complete', progress: 100,
+                output: `Downloaded: ${fileName}\nSaved to: ${dest}`
+            });
+            return;
+        }
+
+        if (res.statusCode !== 200 && res.statusCode !== 206) {
             res.resume();
             activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `HTTP error ${res.statusCode} for ${url}` });
             return;
         }
 
-        const totalSize = parseInt(res.headers['content-length'], 10) || 0;
-        let downloaded = 0;
-        const fileStream = fs.createWriteStream(dest);
+        // If it's 200 (server doesn't support Range), we must start over
+        if (res.statusCode === 200 && startByte > 0) {
+            startByte = 0;
+        }
+
+        const contentLength = parseInt(res.headers['content-length'], 10) || 0;
+        const totalSize = startByte + contentLength;
+        let downloaded = startByte;
+
+        // Use 'a' flag to append if we are resuming
+        const flags = res.statusCode === 206 ? 'a' : 'w';
+        const fileStream = fs.createWriteStream(dest, { flags });
 
         res.on('data', (chunk) => {
             downloaded += chunk.length;
@@ -60,10 +94,19 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
             const dlMB = (downloaded / (1024 * 1024)).toFixed(1);
             const totalMB = totalSize > 0 ? (totalSize / (1024 * 1024)).toFixed(1) : '?';
             const dl = activeDownloads.get(dlId) || {};
+
+            // Allow caller to transition to 'paused' without being overwritten
+            if (dl.status === 'paused' || dl.status === 'cancelled') {
+                req.destroy();
+                return;
+            }
+
             activeDownloads.set(dlId, {
                 ...dl,
                 status: 'downloading',
                 progress: pct,
+                progressBytes: downloaded,
+                totalBytes: totalSize,
                 output: `${fileName}\n${dlMB} MB / ${totalMB} MB (${pct}%)`
             });
         });
@@ -74,7 +117,7 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
             fileStream.close();
             activeProcesses.delete(dlId);
             const dl = activeDownloads.get(dlId) || {};
-            if (dl.status !== 'cancelled') {
+            if (dl.status !== 'cancelled' && dl.status !== 'paused') {
                 activeDownloads.set(dlId, {
                     ...dl,
                     status: 'complete', progress: 100,
@@ -84,28 +127,28 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
         });
 
         fileStream.on('error', (err) => {
-            fs.unlink(dest, () => { });
             activeProcesses.delete(dlId);
             activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `Write error: ${err.message}` });
         });
 
         res.on('error', (err) => {
-            fs.unlink(dest, () => { });
             activeProcesses.delete(dlId);
-            activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `Download error: ${err.message}` });
+            if (err.message !== 'aborted') {
+                activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', progress: 0, output: `Download error: ${err.message}` });
+            }
         });
     });
 
     req.on('error', (err) => {
         activeProcesses.delete(dlId);
         const dl = activeDownloads.get(dlId) || {};
-        if (dl.status !== 'cancelled') {
+        if (dl.status !== 'cancelled' && dl.status !== 'paused') {
             activeDownloads.set(dlId, { ...dl, status: 'failed', progress: 0, output: `Connection error: ${err.message}` });
         }
     });
 
-    // Store request reference for cancellation
-    activeProcesses.set(dlId, { type: 'request', req });
+    // Store request reference for cancellation/pausing
+    activeProcesses.set(dlId, { type: 'request', req, dest, url, maxRedirects });
 }
 
 module.exports = function (config) {
@@ -295,6 +338,46 @@ module.exports = function (config) {
         }
     });
 
+    // Pause an active download
+    router.post('/pause/:id', (req, res) => {
+        const dlId = req.params.id;
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (!dl || dl.type !== 'zim') {
+            return res.status(400).json({ error: 'Only file downloads can be paused' });
+        }
+
+        if (proc && proc.type === 'request' && proc.req) {
+            // Set state to paused, req connection will be destroyed by data event listener
+            activeDownloads.set(dlId, { ...dl, status: 'paused', output: `Paused: ${path.basename(proc.dest)}\nPartially downloaded (${dl.progress}%)` });
+            proc.req.destroy();
+
+            // Keep the process metadata so we can resume it easily later without client resending full details
+            activeProcesses.set(dlId, { ...proc, req: null });
+        }
+        res.json({ success: true, message: 'Download paused' });
+    });
+
+    // Resume a paused download
+    router.post('/resume/:id', (req, res) => {
+        const dlId = req.params.id;
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (!dl || dl.type !== 'zim' || dl.status !== 'paused') {
+            return res.status(400).json({ error: 'Download is not paused or cannot be resumed' });
+        }
+
+        if (proc && proc.url && proc.dest) {
+            activeDownloads.set(dlId, { ...dl, status: 'downloading', output: `Resuming: ${path.basename(proc.dest)}` });
+            downloadFile(proc.url, proc.dest, dlId, activeDownloads, activeProcesses, proc.maxRedirects || 5);
+            res.json({ success: true, message: 'Download resumed' });
+        } else {
+            res.status(400).json({ error: 'Resume context lost' });
+        }
+    });
+
     // Cancel an active download
     router.post('/cancel/:id', (req, res) => {
         const dlId = req.params.id;
@@ -313,6 +396,8 @@ module.exports = function (config) {
         // Delete partial file
         if (dl && dl.dest) {
             try { fs.unlinkSync(dl.dest); } catch (e) { }
+        } else if (proc && proc.dest) {
+            try { fs.unlinkSync(proc.dest); } catch (e) { }
         }
 
         activeDownloads.set(dlId, { status: 'cancelled', progress: 0, output: 'Download cancelled', type: dl?.type });

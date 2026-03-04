@@ -50,10 +50,6 @@ module.exports = function (config) {
             if (contentType && contentType.includes('text/html')) {
                 let html = await response.text();
 
-                // Rewrite internal links to go through our proxy
-                html = html.replace(/href="\//g, 'href="/api/wiki/article/');
-                html = html.replace(/src="\//g, 'src="/api/wiki/asset/');
-
                 res.json({
                     title: articlePath,
                     html: html,
