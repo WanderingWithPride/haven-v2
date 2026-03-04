@@ -51,7 +51,7 @@ const MapsModule = {
 
             this.currentConfig = config;
             this.onlineTileUrl = config.onlineTileUrl || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-            this.offlineTileUrl = config.offlineTileUrl || '';
+            this.offlineTileUrl = config.offlineTileUrl ? `${config.offlineTileUrl}?token=${Auth.token}` : '';
             this.isOffline = false; // Always start online
 
             // Show/hide the toggle button based on whether offline tiles exist
@@ -192,7 +192,7 @@ const MapsModule = {
                     try {
                         const cfgRes = await authFetch(`${API}/api/maps/config`);
                         const cfg = await cfgRes.json();
-                        this.offlineTileUrl = cfg.offlineTileUrl || '';
+                        this.offlineTileUrl = cfg.offlineTileUrl ? `${cfg.offlineTileUrl}?token=${Auth.token}` : '';
                         if (cfg.hasOfflineTiles) {
                             const toggleBtn = document.getElementById('btn-toggle-maps');
                             toggleBtn.style.display = '';

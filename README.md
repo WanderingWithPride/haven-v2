@@ -1,6 +1,6 @@
 # CyberDeck ⚡
 
-A **self-hosted survival/utility platform** that turns your Android phone (or any device running Node.js) into a personal, decentralized server. It provides media streaming, AI chat, offline Wikipedia, maps, encrypted storage, survival guides, and utility tools — all accessible through a single, stunning cyberpunk-themed web app without requiring an internet connection.
+A **self-hosted survival/utility platform** that turns your Android phone (or any device running Node.js) into a personal, decentralized server. It provides media streaming, AI chat, offline Wikipedia, maps, encrypted storage, survival guides, and utility tools, all accessible through a single, stunning cyberpunk-themed web app without requiring an internet connection.
 
 ## 🌟 Core Features
 

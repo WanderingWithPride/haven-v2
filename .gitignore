@@ -1,0 +1,9 @@
+# This .gitignore file should be placed at the root of your project directory
+#
+
+server/downloads
+server/node_modules
+server/vault_data
+server/kiwix-serve.exe
+server/package-lock.json
+server/users.json

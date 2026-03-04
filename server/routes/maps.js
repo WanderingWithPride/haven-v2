@@ -31,21 +31,25 @@ module.exports = function (config) {
         });
     });
 
-    // Serve local tiles if available
-    router.get('/tiles/:z/:x/:y', (req, res) => {
-        const { z, x } = req.params;
-        // Strip extension from y — Leaflet sends "{y}.png" so :y captures "5.png"
-        const y = req.params.y.replace(/\.[^.]+$/, '');
+    // Serve local tiles — route explicitly includes .png so :y captures only the number
+    function serveTile(req, res) {
+        const { z, x, y } = req.params;
         const tilesDir = config.services.maps.tilesPath;
 
         if (!tilesDir) {
-            return res.status(404).json({ error: 'No local tiles configured' });
+            return res.status(404).end();
         }
 
+<<<<<<< Updated upstream
         // Resolve to absolute path (relative paths are resolved from server/ dir)
+=======
+<<<<<<< HEAD
+=======
+        // Resolve to absolute path (relative paths are resolved from server/ dir)
+>>>>>>> d0d632515a613041296c0a9876b11c50e959cbfa
+>>>>>>> Stashed changes
         const absDir = resolveMapPath(tilesDir);
 
-        // Try common tile directory structures
         const possiblePaths = [
             path.join(absDir, z, x, `${y}.png`),
             path.join(absDir, z, x, `${y}.jpg`),
@@ -60,9 +64,14 @@ module.exports = function (config) {
             }
         }
 
-        // Fall back: proxy from OSM if we don't have the tile locally
-        res.status(404).json({ error: 'Tile not found' });
-    });
+        res.status(404).end();
+    }
+
+    router.get('/tiles/:z/:x/:y.png', serveTile);
+    router.get('/tiles/:z/:x/:y.jpg', serveTile);
+    router.get('/tiles/:z/:x/:y.webp', serveTile);
+    // Fallback with no extension (just in case)
+    router.get('/tiles/:z/:x/:y', serveTile);
 
     const activeTileDownloads = new Map();
 
