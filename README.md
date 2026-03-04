@@ -48,6 +48,7 @@ bash setup.sh
 ```
 
 ### Option 2: Linux (Ubuntu/Debian, Fedora, Arch)
+Install Git for Linux from https://git-scm.com/install/linux
 ```bash
 git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck/server
@@ -55,11 +56,14 @@ sudo bash setup-linux.sh
 ```
 
 ### Option 3: Windows (PowerShell)
+Install Git for Windows from https://git-scm.com/install/windows
 ```powershell
 git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck\server
 # Run as Administrator for automatic dependency installation
 .\setup-windows.ps1
+if installation fails, run the following command:
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 ### Starting the Server

@@ -103,31 +103,47 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
             });
         }
 
-        // Check if kiwix-serve is installed, install if on Termux
-        exec('which kiwix-serve', (checkErr) => {
-            if (checkErr) {
-                // Try to install kiwix-tools on Termux
-                exec('pkg install -y kiwix-tools 2>&1', { timeout: 120000 }, (installErr, installOut) => {
-                    if (installErr) {
-                        return res.status(400).json({
-                            error: 'kiwix-serve not found. Install it: pkg install kiwix-tools'
+        const isWin = process.platform === 'win32';
+        const localExePath = path.join(__dirname, 'kiwix-serve.exe');
+        let kiwixCmd = 'kiwix-serve';
+
+        // Check if kiwix-serve is available locally or globally
+        let cmdCheck = isWin ? `where kiwix-serve` : `which kiwix-serve`;
+        if (isWin && fs.existsSync(localExePath)) {
+            // Local fallback for Windows
+            const port = config.services.kiwix.port || 8889;
+            exec(`start /b kiwix-serve.exe --port=${port} "${zimFile}"`, { cwd: __dirname }, (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                return res.json({ success: true, message: `Kiwix started on port ${port}` });
+            });
+        } else {
+            exec(cmdCheck, (checkErr) => {
+                if (checkErr && !isWin) {
+                    // Try to install kiwix-tools on Termux directly
+                    exec('pkg install -y kiwix-tools 2>&1', { timeout: 120000 }, (installErr) => {
+                        if (installErr) {
+                            return res.status(400).json({
+                                error: 'kiwix-serve not found. Install it: pkg install kiwix-tools or flatpak/choco depending on your OS'
+                            });
+                        }
+                        const port = config.services.kiwix.port || 8889;
+                        exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            res.json({ success: true, message: `Kiwix started on port ${port}` });
                         });
-                    }
-                    // Now start after install
+                    });
+                } else if (!checkErr) {
                     const port = config.services.kiwix.port || 8889;
-                    exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
+                    const startCmd = isWin ? `start /b kiwix-serve.exe --port=${port} "${zimFile}"` : `kiwix-serve --port=${port} "${zimFile}" &`;
+                    exec(startCmd, (err) => {
                         if (err) return res.status(500).json({ error: err.message });
                         res.json({ success: true, message: `Kiwix started on port ${port}` });
                     });
-                });
-            } else {
-                const port = config.services.kiwix.port || 8889;
-                exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ success: true, message: `Kiwix started on port ${port}` });
-                });
-            }
-        });
+                } else {
+                    res.status(400).json({ error: 'kiwix-serve not found in PATH' });
+                }
+            });
+        }
     } else {
         res.status(400).json({ error: `Unknown service: ${name}` });
     }
@@ -136,10 +152,11 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
 app.post('/api/services/:name/stop', requireAdmin, (req, res) => {
     const { name } = req.params;
     const { exec } = require('child_process');
+    const isWin = process.platform === 'win32';
 
     const commands = {
-        ollama: 'pkill -f "ollama serve"',
-        kiwix: 'pkill -f "kiwix-serve"'
+        ollama: isWin ? 'taskkill /IM ollama.exe /F /T' : 'pkill -f "ollama serve"',
+        kiwix: isWin ? 'taskkill /IM kiwix-serve.exe /F /T' : 'pkill -f "kiwix-serve"'
     };
 
     if (!commands[name]) {
@@ -147,20 +164,23 @@ app.post('/api/services/:name/stop', requireAdmin, (req, res) => {
     }
 
     exec(commands[name], (err) => {
-        // pkill returns error if no process found, that's okay
+        // taskkill/pkill return error if no process found, that's okay
         res.json({ success: true, message: `${name} stopped` });
     });
 });
 
 app.get('/api/services/status', requireAdmin, async (req, res) => {
     const { exec } = require('child_process');
-    const checkProcess = (name) => new Promise((resolve) => {
-        exec(`pgrep -f "${name}"`, (err) => resolve(!err));
+    const isWin = process.platform === 'win32';
+
+    const checkProcess = (processName) => new Promise((resolve) => {
+        const cmd = isWin ? `tasklist | findstr /i "${processName}"` : `pgrep -f "${processName}"`;
+        exec(cmd, (err) => resolve(!err)); // No error means process found
     });
 
     const [ollamaRunning, kiwixRunning] = await Promise.all([
-        checkProcess('ollama serve'),
-        checkProcess('kiwix-serve')
+        checkProcess(isWin ? 'ollama.exe' : 'ollama serve'),
+        checkProcess(isWin ? 'kiwix-serve.exe' : 'kiwix-serve')
     ]);
 
     res.json({
