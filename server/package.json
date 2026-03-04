@@ -8,13 +8,14 @@
     "dev": "node server.js --dev"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "music-metadata": "^7.14.0",
-    "sharp": "^0.33.2",
+    "express": "^4.18.2",
     "mime-types": "^2.1.35",
     "multer": "^2.0.0",
+    "music-metadata": "^7.14.0",
     "node-fetch": "^2.7.0",
+    "selfsigned": "^5.5.0",
+    "sharp": "^0.33.2",
     "ws": "^8.16.0"
   }
 }

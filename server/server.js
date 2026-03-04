@@ -265,25 +265,74 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
-// Start server with HTTP (needed for WebSocket)
+// Start server with HTTP and dynamic HTTPS (needed for WebRTC/Bluetooth)
 const http = require('http');
+const https = require('https');
+const selfsigned = require('selfsigned');
+
 const httpServer = http.createServer(app);
 
-// Setup WebSocket chat
-const setupChat = require('./chat');
-setupChat(httpServer);
+// Generate self-signed cert on the fly for local HTTPS
+console.log('Generating dynamic self-signed certificate for WebRTC support...');
+const attrs = [{ name: 'commonName', value: 'cyberdeck.local' }];
+const pemsPromise = selfsigned.generate(attrs, {
+    days: 365,
+    keySize: 2048,
+    extensions: [{
+        name: 'basicConstraints',
+        cA: true
+    }, {
+        name: 'subjectAltName',
+        altNames: [{
+            type: 2, // DNS
+            value: 'localhost'
+        }, {
+            type: 7, // IP
+            ip: '127.0.0.1'
+        }, {
+            type: 7, // IP
+            ip: getLanIP()
+        }]
+    }]
+});
 
-const PORT = config.port || 8888;
-httpServer.listen(PORT, '0.0.0.0', () => {
-    const ip = getLanIP();
-    console.log('');
-    console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
-    console.log('\x1b[36m  ║      ⚡ CyberDeck Server Running ⚡   ║\x1b[0m');
-    console.log('\x1b[36m  ╚═══════════════════════════════════════╝\x1b[0m');
-    console.log('');
-    console.log(`  \x1b[1mLocal:\x1b[0m    http://localhost:${PORT}`);
-    console.log(`  \x1b[1mNetwork:\x1b[0m  http://${ip}:${PORT}`);
-    console.log(`  \x1b[1mAdmin:\x1b[0m    http://${ip}:${PORT}/admin`);
-    console.log(`  \x1b[1mChat WS:\x1b[0m  ws://${ip}:${PORT}/ws/chat`);
-    console.log('');
+pemsPromise.then(pems => {
+    const httpsServer = https.createServer({
+        key: pems.private,
+        cert: pems.cert,
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: false
+    }, app);
+
+    // Setup WebSocket chat
+    const setupChat = require('./chat');
+    setupChat(httpServer);
+    setupChat(httpsServer);
+
+    const PORT = config.port || 8888;
+    const HTTPS_PORT = config.httpsPort || 8443;
+
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        // Do nothing here, log below
+    });
+
+    httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+        const ip = getLanIP();
+        console.log('');
+        console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
+        console.log('\x1b[36m  ║      ⚡ CyberDeck Server Running ⚡   ║\x1b[0m');
+        console.log('\x1b[36m  ╚═══════════════════════════════════════╝\x1b[0m');
+        console.log('');
+        console.log(`  \x1b[1mLocal (HTTP):\x1b[0m   http://localhost:${PORT}`);
+        console.log(`  \x1b[1mNetwork (HTTP):\x1b[0m http://${ip}:${PORT}`);
+        console.log(`  \x1b[32m\x1b[1mWebRTC (HTTPS):\x1b[0m https://${ip}:${HTTPS_PORT}  <-- USE THIS FOR MESH APP\x1b[0m`);
+        console.log(`  \x1b[1mAdmin:\x1b[0m          http://${ip}:${PORT}/admin`);
+        console.log(`  \x1b[1mChat WS:\x1b[0m        ws://${ip}:${PORT}/ws/chat`);
+        console.log('');
+        console.log('\x1b[90m  Note: You will see a "Your connection is not private" warning\x1b[0m');
+        console.log('\x1b[90m  when accessing HTTPS. Click "Advanced -> Proceed" to continue.\x1b[0m');
+        console.log('');
+    });
+}).catch(err => {
+    console.error('Failed to generate self-signed certificate:', err);
 });
