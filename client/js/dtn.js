@@ -78,6 +78,18 @@ const DtnModule = {
             </div>
         `;
         await this.refresh();
+
+        // Keep UI synchronized with background Node.js Epidemic transfers
+        if (!this._intervalAttached) {
+            this._intervalAttached = true;
+            setInterval(() => {
+                const page = document.getElementById('mod-dtn');
+                // Only poll if DTN is actually open to save bandwidth
+                if (page && page.innerHTML !== '') {
+                    this.refresh();
+                }
+            }, 5000);
+        }
     },
 
     showNewMessageUI() {
@@ -149,8 +161,10 @@ const DtnModule = {
     },
 
     async refresh() {
+        if (this.isRefreshing) return;
+        this.isRefreshing = true;
         try {
-            const res = await authFetch(`${API}/api/dtn/packets`);
+            const res = await authFetch('/api/dtn/packets');
             const data = await res.json();
             this.packets = data.packets || [];
 
