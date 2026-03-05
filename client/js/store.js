@@ -82,7 +82,8 @@ const StoreModule = {
                     dirUrl: item.dirUrl || '',
                     pattern: item.pattern || '',
                     cmd: item.cmd || '',
-                    type: item.type
+                    type: item.type,
+                    sha256: item.sha256 || ''
                 };
 
                 html += `
@@ -224,7 +225,7 @@ const StoreModule = {
     },
 
     async download(id, itemConfig) {
-        const { url, dirUrl, pattern, cmd, type } = itemConfig;
+        const { url, dirUrl, pattern, cmd, type, sha256 } = itemConfig;
         const btn = document.getElementById(`btn-${id}`);
         const prog = document.getElementById(`prog-${id}`);
 
@@ -241,7 +242,7 @@ const StoreModule = {
             const res = await authFetch(`${API}/api/store/download`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, url, dirUrl, pattern, cmd, type })
+                body: JSON.stringify({ id, url, dirUrl, pattern, cmd, type, sha256 })
             });
             const data = await res.json();
 
@@ -382,6 +383,16 @@ const StoreModule = {
                     if (pauseBtn) pauseBtn.style.display = 'none';
                     if (resumeBtn) resumeBtn.style.display = 'none';
                     if (data.output) alert('Download failed:\n' + data.output);
+                } else if (data.status === 'corrupted') {
+                    fill.style.width = '100%';
+                    fill.style.background = 'var(--red)';
+                    text.textContent = '✗ Integrity Failure';
+                    btn.textContent = '⬇ Retry';
+                    btn.disabled = false;
+                    if (cancelBtn) cancelBtn.style.display = 'none';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
+                    if (data.output) alert('⚠️ Integrity Check Failed:\n' + data.output);
                 } else if (data.status === 'cancelled') {
                     // Already handled in cancelDownload
                 } else {

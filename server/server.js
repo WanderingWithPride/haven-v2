@@ -62,26 +62,157 @@ app.get('/third-party', (req, res) => {
     const licensePath = path.join(__dirname, '..', 'THIRD_PARTY_LICENSES.md');
     let content = 'No license file found.';
     try { content = fs.readFileSync(licensePath, 'utf-8'); } catch (e) { }
-    // Convert markdown to simple HTML
-    const html = content
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^\|(.+)\|$/gm, (match) => {
-            const cells = match.split('|').filter(c => c.trim());
-            return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
-        })
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#00f0ff;">$1</a>')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
-    res.send(`<!DOCTYPE html><html><head><title>CyberDeck - Third Party Licenses</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>body{background:#06060b;color:#c0c0d0;font-family:'Segoe UI',sans-serif;padding:20px 40px;max-width:900px;margin:0 auto;}
-        h1{color:#00f0ff;}h2{color:#a78bfa;margin-top:30px;}
-        table{width:100%;border-collapse:collapse;margin:10px 0;}
-        td{padding:8px 12px;border:1px solid #2a2a3e;}
-        tr:first-child{background:#1a1a2e;font-weight:bold;}
-        a{color:#00f0ff;}strong{color:#fff;}
-        </style></head><body>${html}<br><br><a href="/" style="color:#00f0ff;">← Back to CyberDeck</a></body></html>`);
+
+    // Multi-pass markdown → HTML
+    const lines = content.split(/\r?\n/);
+    let html = '';
+    let inTable = false;
+    let isFirstTableRow = true;
+
+    for (const line of lines) {
+        // Heading
+        if (line.startsWith('# ')) { html += `<h1>${line.slice(2)}</h1>`; continue; }
+        if (line.startsWith('## ')) { html += `<h2>${line.slice(3)}</h2>`; continue; }
+
+        // Table separator row (|---|---|)
+        if (/^\|[\s\-:]+\|/.test(line) && !line.replace(/[\|\s\-:]/g, '').length) {
+            continue; // skip separator
+        }
+
+        // Table row
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.split('|').slice(1, -1).map(c => c.trim());
+            if (!inTable) {
+                html += '<table>';
+                inTable = true;
+                isFirstTableRow = true;
+            }
+            if (isFirstTableRow) {
+                html += '<thead><tr>' + cells.map(c => `<th>${applyInline(c)}</th>`).join('') + '</tr></thead><tbody>';
+                isFirstTableRow = false;
+            } else {
+                html += '<tr>' + cells.map(c => `<td>${applyInline(c)}</td>`).join('') + '</tr>';
+            }
+            continue;
+        }
+
+        // Close table if we were in one
+        if (inTable) { html += '</tbody></table>'; inTable = false; isFirstTableRow = true; }
+
+        // Paragraph text
+        if (line.trim()) {
+            html += `<p>${applyInline(line)}</p>`;
+        }
+    }
+    if (inTable) html += '</tbody></table>';
+
+    function applyInline(text) {
+        return text
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberDeck — Third Party Licenses</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #06060b;
+            color: #c0c0d0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 40px 24px;
+            max-width: 960px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #00f0ff;
+            font-size: 28px;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        h2 {
+            color: #a78bfa;
+            font-size: 20px;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a2a3e;
+        }
+        p {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #8888a0;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 16px 0 32px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #2a2a3e;
+        }
+        thead tr {
+            background: #1a1a2e;
+        }
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #00f0ff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #2a2a3e;
+        }
+        td {
+            padding: 12px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid #1a1a2e;
+            color: #c0c0d0;
+        }
+        tbody tr {
+            background: #0d0d14;
+            transition: background 0.2s;
+        }
+        tbody tr:hover {
+            background: #14142a;
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        a {
+            color: #00f0ff;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        a:hover { opacity: 0.7; text-decoration: underline; }
+        strong { color: #ffffff; }
+        .back-link {
+            display: inline-block;
+            margin-top: 40px;
+            padding: 10px 20px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a3e;
+            border-radius: 8px;
+            color: #00f0ff;
+            font-size: 14px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .back-link:hover { background: #24243e; text-decoration: none; }
+    </style>
+</head>
+<body>
+    ${html}
+    <a href="/" class="back-link">← Back to CyberDeck</a>
+</body>
+</html>`);
 });
 
 // Serve admin panel
