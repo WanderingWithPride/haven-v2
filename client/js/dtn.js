@@ -31,12 +31,12 @@ const DtnModule = {
                 <div class="card" id="dtn-composer" style="display: none; border-color: var(--cyan); box-shadow: var(--glow-cyan);">
                     <h3 style="color:var(--cyan);margin-bottom:15px">Inject New Packet</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <input type="text" id="dtn-sender" placeholder="Your Alias (Sender)" class="search-box" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        <input type="text" id="dtn-dest" placeholder="Destination (default: ALL)" value="ALL" class="search-box" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        <textarea id="dtn-payload" placeholder="Enter message payload..." class="search-box" style="padding: 10px; width: 100%; min-height: 80px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <input type="text" id="dtn-sender" placeholder="Your Alias (Sender)" class="search-box" style="padding: 10px; width: 100%; box-sizing: border-box; color: #fff;">
+                        <input type="text" id="dtn-dest" placeholder="Destination (default: ALL)" value="ALL" class="search-box" style="padding: 10px; width: 100%; box-sizing: border-box; color: #fff;">
+                        <textarea id="dtn-payload" placeholder="Enter message payload..." class="search-box" style="padding: 10px; width: 100%; min-height: 80px; box-sizing: border-box; resize: vertical; color: #fff; font-family: monospace;"></textarea>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <span style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">TTL (Hours):</span>
-                            <input type="number" id="dtn-ttl" value="48" min="1" max="168" class="search-box" style="padding: 5px 10px; width: 80px;">
+                            <input type="number" id="dtn-ttl" value="48" min="1" max="168" class="search-box" style="padding: 5px 10px; width: 80px; color: #fff;">
                             <div style="flex: 1; min-width: 10px;"></div>
                             <button class="btn" style="background:var(--surface2);" onclick="document.getElementById('dtn-composer').style.display='none'">Cancel</button>
                             <button class="btn btn-primary" onclick="DtnModule.sendPacket()">Inject to Network</button>
@@ -50,7 +50,7 @@ const DtnModule = {
                         CyberDeck automatically discovers nearby nodes using mDNS. If mDNS is blocked by a router or Android Hotspot, manually bridge the gap by entering the peer's IP here.
                     </p>
                     <div class="search-box" style="display: flex; padding-right: 4px;">
-                        <input type="text" id="dtn-peer-ip" placeholder="e.g. 192.168.43.1" style="flex: 1;">
+                        <input type="text" id="dtn-peer-ip" placeholder="e.g. 192.168.43.1" style="flex: 1; color: #fff;">
                         <button class="btn btn-primary" onclick="DtnModule.manualSync()">Force Sync</button>
                     </div>
                 </div>
