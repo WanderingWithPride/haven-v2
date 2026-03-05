@@ -116,44 +116,19 @@ const DtnModule = {
         if (!ip) return alert('Enter a peer IP');
 
         try {
-            // We tell the server to trigger a manual sync to this IP
-            // Wait, we didn't build a manual trigger endpoint!
-            // Let's implement it quickly on the client side by doing the two-way sync here!
-
-            // 1. Get my known IDs
-            const myRes = await authFetch(`${API}/api/dtn/packets`);
-            const myData = await myRes.json();
-            const myIds = myData.packets.map(p => p.id);
-
-            // 2. Ask peer check
-            const peerCheckRes = await authFetch(`http://${ip}:8888/api/dtn/sync/check`, {
+            // Instead of making the client browser fetch Cross-Origin (which gets blocked by CORS and HTTPS Mixed Content),
+            // tell our local Node.js server to do the fetching for us.
+            const res = await authFetch(`${API}/api/dtn/manual_sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ known_ids: myIds })
+                body: JSON.stringify({ targetIp: ip })
             });
-            const peerCheckData = await peerCheckRes.json();
+            const data = await res.json();
 
-            // 3. Consume payloads peer sent us
-            if (peerCheckData.payloads_for_you && peerCheckData.payloads_for_you.length > 0) {
-                await authFetch(`${API}/api/dtn/sync/receive`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ packets: peerCheckData.payloads_for_you })
-                });
-                alert(`Received ${peerCheckData.payloads_for_you.length} packets!`);
-            }
-
-            // 4. Send what peer needs
-            if (peerCheckData.my_known_ids) {
-                const peerNeeds = myData.packets.filter(p => !peerCheckData.my_known_ids.includes(p.id));
-                if (peerNeeds.length > 0) {
-                    await authFetch(`http://${ip}:8888/api/dtn/sync/receive`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ packets: peerNeeds })
-                    });
-                    alert(`Sent ${peerNeeds.length} packets!`);
-                }
+            if (data.success) {
+                alert(data.message || 'Sync successful!');
+            } else {
+                alert('Sync failed: ' + (data.error || 'Unknown error'));
             }
 
             this.refresh();

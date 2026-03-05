@@ -160,5 +160,53 @@ module.exports = function (config) {
         res.json({ accepted });
     });
 
+    // 5. Manual Sync Proxy: Bypass browser CORS and HTTPS mixed content limits
+    router.post('/manual_sync', async (req, res) => {
+        const peerIp = req.body.targetIp;
+        if (!peerIp) return res.status(400).json({ error: 'Missing targetIp' });
+
+        try {
+            const fetch = require('node-fetch').default || require('node-fetch');
+            const myPackets = getSpoolPackets();
+            const myKnownIds = myPackets.map(p => p.id);
+
+            let stats = { received: 0, sent: 0 };
+
+            // Tell peer what we KNOW.
+            const checkRes = await fetch(`http://${peerIp}:${config.port || 8888}/api/dtn/sync/check`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ known_ids: myKnownIds }),
+                timeout: 5000
+            });
+            const data = await checkRes.json();
+
+            // Store missing payloads peer sent us
+            if (data.payloads_for_you && data.payloads_for_you.length > 0) {
+                for (const p of data.payloads_for_you) {
+                    if (savePacket(p)) stats.received++;
+                }
+            }
+
+            // Figure out what they need from us
+            if (data.my_known_ids) {
+                const peerNeeds = myPackets.filter(myP => !data.my_known_ids.includes(myP.id));
+                if (peerNeeds.length > 0) {
+                    await fetch(`http://${peerIp}:${config.port || 8888}/api/dtn/sync/receive`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ packets: peerNeeds }),
+                        timeout: 5000
+                    });
+                    stats.sent = peerNeeds.length;
+                }
+            }
+
+            res.json({ success: true, message: `Sync Complete: Sent ${stats.sent}, Received ${stats.received}` });
+        } catch (e) {
+            res.status(500).json({ success: false, error: e.message });
+        }
+    });
+
     return router;
 };
