@@ -175,8 +175,11 @@ module.exports = function (config) {
             const https = require('https');
             const agent = new https.Agent({ rejectUnauthorized: false }); // Ignore self-signed certs
 
+            const targetUrl = `https://${peerIp}:${config.httpsPort || 8443}/api/dtn/sync/check`;
+            console.log(`\x1b[33m[DTN Proxy] Initiating manual HTTPS fetch to: ${targetUrl}\x1b[0m`);
+
             // Tell peer what we KNOW.
-            const checkRes = await fetch(`https://${peerIp}:${config.httpsPort || 8443}/api/dtn/sync/check`, {
+            const checkRes = await fetch(targetUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ known_ids: myKnownIds }),

@@ -376,9 +376,14 @@ pemsPromise.then(pems => {
                     try {
                         const payload = JSON.parse(msg.toString());
                         if (payload.cyberdtn && rinfo.address !== ip) {
+                            if (!dtnPeers.has(rinfo.address)) {
+                                console.log(`\x1b[32m[DTN] UDP Beacon Discovered P2P Node: ${rinfo.address}\x1b[0m`);
+                            }
                             dtnPeers.set(rinfo.address, Date.now());
                         }
-                    } catch (e) { }
+                    } catch (e) {
+                        console.error('[DTN] UDP Ping Error:', e.message);
+                    }
                 });
                 udpServer.bind(8887, '0.0.0.0', () => {
                     console.log(`\x1b[36m  \x1b[1mDTN UDP Beacon:\x1b[0m Active on port 8887\x1b[0m`);
@@ -389,7 +394,9 @@ pemsPromise.then(pems => {
                     try {
                         const msg = Buffer.from(JSON.stringify({ cyberdtn: true }));
                         udpClient.send(msg, 0, msg.length, 8887, '255.255.255.255');
-                    } catch (e) { }
+                    } catch (e) {
+                        console.error('\x1b[31m[DTN] UDP Sent Error:\x1b[0m', e.message);
+                    }
                 }, 10000);
             } catch (e) {
                 console.error('Failed to start UDP beacon:', e.message);
