@@ -66,7 +66,9 @@ const StoreModule = {
 
     renderCatalog() {
         const el = document.getElementById('storeContent');
-        let html = '';
+        let html = `<div style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: var(--text-dim);">
+            ⚖️ <strong style="color: var(--cyan);">Attribution Notice:</strong> All downloadable content listed here is provided by third-party open-source projects. CyberDeck does not own, host, or claim ownership of any of these resources. Each item is subject to its original author's license terms. By downloading, you agree to comply with those terms. <a href="/third-party" target="_blank" style="color:var(--cyan);text-decoration:underline;">View all licenses →</a>
+        </div>`;
 
         this.catalog.forEach(cat => {
             html += `<div class="store-category">
@@ -90,6 +92,12 @@ const StoreModule = {
                             <span class="tag tag-cyan" id="size-${item.id}">${item.size}</span>
                         </div>
                         <p style="font-size:12px;color:var(--text-dim);margin:6px 0">${item.desc}</p>
+                        ${item.license ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:10px;">
+                            <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ License: ${item.license}</span>
+                            ${item.licenseUrl ? `<a href="${item.licenseUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">View License</a>` : ''}
+                            ${item.source ? `<span style="color:var(--text-dim);">Source: <a href="${item.sourceUrl || '#'}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">${item.source}</a></span>` : ''}
+                            ${item.distributor ? `<span style="color:var(--text-dim);font-style:italic;">${item.distributor}</span>` : ''}
+                        </div>` : ''}
                         <div class="store-item-actions">
                             <div class="store-progress" id="prog-${item.id}" style="display:none">
                                 <div class="power-bar"><div class="power-bar-fill" id="fill-${item.id}"></div></div>

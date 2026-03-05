@@ -65,7 +65,7 @@ git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck\server
 # Run as Administrator for automatic dependency installation
 .\setup-windows.ps1
-if installation fails, run the following command:
+# if installation fails, run the following command:
 powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
@@ -151,5 +151,23 @@ Everything is built using Vanilla JavaScript, HTML, and CSS without heavy fronte
 - **Hardware**: For basic features, any smartphone from the last 10 years works. For **AI Chat**, a device with at least 6GB RAM (8GB+ recommended) is required.
 - **Network**: Wi-Fi router or Mobile Hotspot (no active internet connection required after initial setup/downloads).
 
+## 🔧 Third Party Services
+
+CyberDeck integrates with optional external software:
+
+- **[Kiwix](https://www.kiwix.org/)** – Offline Wikipedia server
+- **[Ollama](https://ollama.ai/)** – Local AI model runtime
+
+*These services are installed separately and are licensed under their respective open-source licenses.*
+
 ## 📄 License
+
 MIT License. Build, mod, and survive.
+
+For a comprehensive list of all open-source libraries used to build CyberDeck, see [**THIRD_PARTY_LICENSES.md**](THIRD_PARTY_LICENSES.md).
+
+### Third-Party Models and Datasets
+
+CyberDeck allows downloading third-party AI models and datasets from the internet directly to your device via the Store module. 
+
+These resources are distributed under their respective licenses. CyberDeck does not claim ownership of any downloaded models or datasets. Users must comply with the original author's license terms.

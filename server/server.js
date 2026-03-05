@@ -57,6 +57,33 @@ app.use((req, res, next) => {
 // Serve client app at root
 app.use('/', express.static(path.join(__dirname, '..', 'client')));
 
+// Third-Party Licenses Page
+app.get('/third-party', (req, res) => {
+    const licensePath = path.join(__dirname, '..', 'THIRD_PARTY_LICENSES.md');
+    let content = 'No license file found.';
+    try { content = fs.readFileSync(licensePath, 'utf-8'); } catch (e) { }
+    // Convert markdown to simple HTML
+    const html = content
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^\|(.+)\|$/gm, (match) => {
+            const cells = match.split('|').filter(c => c.trim());
+            return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
+        })
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#00f0ff;">$1</a>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    res.send(`<!DOCTYPE html><html><head><title>CyberDeck - Third Party Licenses</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>body{background:#06060b;color:#c0c0d0;font-family:'Segoe UI',sans-serif;padding:20px 40px;max-width:900px;margin:0 auto;}
+        h1{color:#00f0ff;}h2{color:#a78bfa;margin-top:30px;}
+        table{width:100%;border-collapse:collapse;margin:10px 0;}
+        td{padding:8px 12px;border:1px solid #2a2a3e;}
+        tr:first-child{background:#1a1a2e;font-weight:bold;}
+        a{color:#00f0ff;}strong{color:#fff;}
+        </style></head><body>${html}<br><br><a href="/" style="color:#00f0ff;">← Back to CyberDeck</a></body></html>`);
+});
+
 // Serve admin panel
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 

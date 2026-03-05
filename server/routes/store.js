@@ -172,23 +172,33 @@ module.exports = function (config) {
                     items: [
                         {
                             id: 'wiki-en-simple', name: 'Wikipedia Simple English', desc: 'Simple English Wikipedia — great starting point', size: '~600 MB',
-                            dirUrl: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_simple_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_simple_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                            source: 'Wikimedia Foundation', sourceUrl: 'https://www.wikipedia.org/', distributor: 'Distributed via Kiwix'
                         },
                         {
                             id: 'wiki-en-nopic', name: 'Wikipedia English (No Pics)', desc: 'Full English Wikipedia, text only — best value', size: '~10 GB',
-                            dirUrl: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_all_nopic_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_all_nopic_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                            source: 'Wikimedia Foundation', sourceUrl: 'https://www.wikipedia.org/', distributor: 'Distributed via Kiwix'
                         },
                         {
                             id: 'wikibooks', name: 'Wikibooks English', desc: 'Open textbooks and manuals', size: '~400 MB',
-                            dirUrl: 'https://download.kiwix.org/zim/wikibooks/', pattern: 'wikibooks_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/wikibooks/', pattern: 'wikibooks_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                            source: 'Wikimedia Foundation', sourceUrl: 'https://www.wikibooks.org/', distributor: 'Distributed via Kiwix'
                         },
                         {
                             id: 'ifixit', name: 'iFixit Repair Manuals', desc: 'Repair guides for thousands of devices', size: '~3 GB',
-                            dirUrl: 'https://download.kiwix.org/zim/ifixit/', pattern: 'ifixit_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/ifixit/', pattern: 'ifixit_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-NC-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-nc-sa/3.0/',
+                            source: 'iFixit', sourceUrl: 'https://www.ifixit.com/', distributor: 'Distributed via Kiwix'
                         },
                         {
                             id: 'stackexchange', name: 'StackOverflow', desc: 'Programming Q&A archive', size: '~75 GB',
-                            dirUrl: 'https://download.kiwix.org/zim/stack_exchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/stack_exchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                            source: 'Stack Exchange, Inc.', sourceUrl: 'https://stackoverflow.com/', distributor: 'Distributed via Kiwix'
                         }
                     ]
                 },
@@ -196,26 +206,50 @@ module.exports = function (config) {
                     name: 'LLM Models',
                     icon: '🧠',
                     items: [
-                        { id: 'llm-tinyllama', name: 'TinyLlama 1.1B', desc: 'Ultra-light, basic conversations', size: '637 MB', cmd: 'ollama pull tinyllama', type: 'ollama' },
-                        { id: 'llm-phi3-mini', name: 'Phi-3 Mini 3.8B', desc: 'Good reasoning, small size', size: '2.2 GB', cmd: 'ollama pull phi3:mini', type: 'ollama' },
-                        { id: 'llm-gemma2', name: 'Gemma 2 2B', desc: 'Google, efficient and smart', size: '1.6 GB', cmd: 'ollama pull gemma2:2b', type: 'ollama' },
-                        { id: 'llm-llama3', name: 'Llama 3.2 3B', desc: 'Meta, strong general purpose', size: '2.0 GB', cmd: 'ollama pull llama3.2:3b', type: 'ollama' },
-                        { id: 'llm-mistral', name: 'Mistral 7B', desc: 'Best quality, needs 8GB+ RAM', size: '4.1 GB', cmd: 'ollama pull mistral', type: 'ollama' },
-                        { id: 'llm-meditron', name: 'Meditron 7B', desc: 'Medical-specialized LLM', size: '4.1 GB', cmd: 'ollama pull meditron', type: 'ollama' }
+                        {
+                            id: 'llm-tinyllama', name: 'TinyLlama 1.1B', desc: 'Ultra-light, basic conversations', size: '637 MB', cmd: 'ollama pull tinyllama', type: 'ollama',
+                            license: 'MIT', licenseUrl: 'https://opensource.org/licenses/MIT', source: 'HuggingFace', sourceUrl: 'https://github.com/jzhang38/TinyLlama'
+                        },
+                        {
+                            id: 'llm-phi3-mini', name: 'Phi-3 Mini 3.8B', desc: 'Microsoft, good reasoning, small size', size: '2.2 GB', cmd: 'ollama pull phi3:mini', type: 'ollama',
+                            license: 'MIT', licenseUrl: 'https://opensource.org/licenses/MIT', source: 'HuggingFace', sourceUrl: 'https://huggingface.co/microsoft/Phi-3-mini-4k-instruct'
+                        },
+                        {
+                            id: 'llm-gemma2', name: 'Gemma 2 2B', desc: 'Google, efficient and smart', size: '1.6 GB', cmd: 'ollama pull gemma2:2b', type: 'ollama',
+                            license: 'Gemma License', licenseUrl: 'https://ai.google.dev/gemma/terms', source: 'Google DeepMind', sourceUrl: 'https://blog.google/technology/developers/gemma-open-models/'
+                        },
+                        {
+                            id: 'llm-llama3', name: 'Llama 3.2 3B', desc: 'Meta, strong general purpose', size: '2.0 GB', cmd: 'ollama pull llama3.2:3b', type: 'ollama',
+                            license: 'Llama 3.2 Community License', licenseUrl: 'https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE', source: 'HuggingFace', sourceUrl: 'https://ai.meta.com/llama/'
+                        },
+                        {
+                            id: 'llm-mistral', name: 'Mistral 7B', desc: 'Best quality, needs 8GB+ RAM', size: '4.1 GB', cmd: 'ollama pull mistral', type: 'ollama',
+                            license: 'Apache 2.0', licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0', source: 'HuggingFace', sourceUrl: 'https://mistral.ai/'
+                        },
+                        {
+                            id: 'llm-meditron', name: 'Meditron 7B', desc: 'Medical-specialized LLM', size: '4.1 GB', cmd: 'ollama pull meditron', type: 'ollama',
+                            license: 'Apache 2.0', licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0', source: 'HuggingFace', sourceUrl: 'https://github.com/epfLLM/meditron'
+                        }
                     ]
                 },
                 {
                     name: 'Survival Knowledge Packs',
                     icon: '🛡️',
                     items: [
-                        { id: 'gutenberg', name: 'Project Gutenberg', desc: 'classic books (EPUB)', size: 'Varies', url: 'https://www.gutenberg.org/', type: 'manual' },
+                        {
+                            id: 'gutenberg', name: 'Project Gutenberg', desc: 'Classic books (EPUB)', size: 'Varies', url: 'https://www.gutenberg.org/', type: 'manual',
+                            license: 'Public Domain', licenseUrl: 'https://www.gutenberg.org/policy/license.html', source: 'Project Gutenberg', sourceUrl: 'https://www.gutenberg.org/'
+                        },
                         {
                             id: 'medref', name: 'Medical Wikipedia (mdwiki)', desc: 'Medical articles, drugs, first aid', size: '~2 GB',
-                            dirUrl: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            dirUrl: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim',
+                            license: 'CC BY-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+                            source: 'WikiProject Medicine', sourceUrl: 'https://mdwiki.org/', distributor: 'Distributed via Kiwix'
                         },
                         {
                             id: 'survival-fm', name: 'US Army Survival Manual', desc: 'FM 21-76 field survival guide', size: '~150 MB',
-                            url: 'https://archive.org/details/FM2176USARMYSURVIVALMANUAL/', type: 'manual'
+                            url: 'https://archive.org/details/FM2176USARMYSURVIVALMANUAL/', type: 'manual',
+                            license: 'Public Domain', licenseUrl: 'https://www.usa.gov/government-works', source: 'U.S. Department of the Army', sourceUrl: 'https://archive.org/details/FM2176USARMYSURVIVALMANUAL/'
                         }
                     ]
                 },
@@ -223,7 +257,10 @@ module.exports = function (config) {
                     name: 'Maps & Navigation',
                     icon: '🗺️',
                     items: [
-                        { id: 'osm-tiles', name: 'Offline Map Tiles', desc: 'Download tiles via OpenMapTiles', size: 'Varies', url: 'https://openmaptiles.org/', type: 'manual' }
+                        {
+                            id: 'osm-tiles', name: 'Offline Map Tiles', desc: 'Download tiles via OpenMapTiles', size: 'Varies', url: 'https://openmaptiles.org/', type: 'manual',
+                            license: 'ODbL / CC-BY', licenseUrl: 'https://opendatacommons.org/licenses/odbl/', source: 'OpenStreetMap Contributors', sourceUrl: 'https://openmaptiles.org/'
+                        }
                     ]
                 }
             ]
