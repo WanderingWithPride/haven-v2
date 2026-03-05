@@ -200,6 +200,8 @@ const DtnModule = {
             tbody.innerHTML = html;
         } catch (e) {
             document.getElementById('dtn-spool-table').innerHTML = `<tr><td colspan="5" style="color:red; padding:10px;">Failed to load spool: ${e.message}</td></tr>`;
+        } finally {
+            this.isRefreshing = false;
         }
     }
 };
