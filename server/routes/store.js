@@ -183,11 +183,11 @@ module.exports = function (config) {
                             dirUrl: 'https://download.kiwix.org/zim/wikibooks/', pattern: 'wikibooks_en_all_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
                         },
                         {
-                            id: 'wikihow', name: 'WikiHow English', desc: 'How-to guides for everything', size: '~5 GB',
-                            dirUrl: 'https://download.kiwix.org/zim/other/', pattern: 'wikihow_en_maxi_\\d{4}-\\d{2}\\.zim', type: 'zim'
+                            id: 'ifixit', name: 'iFixit Repair Manuals', desc: 'Repair guides for thousands of devices', size: '~3 GB',
+                            dirUrl: 'https://download.kiwix.org/zim/ifixit/', pattern: 'ifixit_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim'
                         },
                         {
-                            id: 'stackexchange', name: 'StackOverflow', desc: 'Programming Q&A archive', size: '~8 GB',
+                            id: 'stackexchange', name: 'StackOverflow', desc: 'Programming Q&A archive', size: '~75 GB',
                             dirUrl: 'https://download.kiwix.org/zim/stack_exchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim', type: 'zim'
                         }
                     ]
@@ -517,19 +517,98 @@ module.exports = function (config) {
         res.json(dl);
     });
 
-    // List downloaded content
-    router.get('/downloaded', (req, res) => {
+    function getDirSize(dirPath) {
+        let size = 0;
         try {
-            const files = fs.readdirSync(DOWNLOADS_DIR)
-                .filter(f => !f.startsWith('.'))
-                .map(f => {
-                    const stat = fs.statSync(path.join(DOWNLOADS_DIR, f));
-                    return { name: f, size: stat.size, date: stat.mtime };
-                });
-            res.json({ files });
-        } catch (err) {
-            res.json({ files: [] });
-        }
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+                const fullPath = path.join(dirPath, file);
+                const stats = fs.statSync(fullPath);
+                if (stats.isDirectory()) {
+                    size += getDirSize(fullPath);
+                } else {
+                    size += stats.size;
+                }
+            }
+        } catch (e) { }
+        return size;
+    }
+
+    // List downloaded content (ZIMs, Maps, LLMs)
+    router.get('/downloaded', (req, res) => {
+        const items = [];
+
+        // 1. ZIM Files
+        try {
+            const files = fs.readdirSync(DOWNLOADS_DIR);
+            for (const f of files) {
+                if (f.startsWith('.') || f === 'maps') continue;
+                const fullPath = path.join(DOWNLOADS_DIR, f);
+                const stat = fs.statSync(fullPath);
+                if (stat.isFile() && f.endsWith('.zim')) {
+                    items.push({
+                        id: f,
+                        name: f.replace('.zim', ''),
+                        type: 'zim',
+                        sizeBytes: stat.size,
+                        absolutePath: fullPath,
+                        date: stat.mtime
+                    });
+                }
+            }
+        } catch (err) { }
+
+        // 2. Offline Map Tiles
+        try {
+            const mapsPath = path.join(DOWNLOADS_DIR, 'maps');
+            if (fs.existsSync(mapsPath)) {
+                const size = getDirSize(mapsPath);
+                if (size > 0) {
+                    items.push({
+                        id: 'osm-tiles-local',
+                        name: 'Offline Map Tiles',
+                        type: 'map',
+                        sizeBytes: size,
+                        absolutePath: mapsPath,
+                        date: fs.statSync(mapsPath).mtime
+                    });
+                }
+            }
+        } catch (err) { }
+
+        // 3. Ollama Models
+        try {
+            const { execSync } = require('child_process');
+            // Format: NAME               ID              SIZE      MODIFIED
+            // tinyllama:latest      ...             637 MB    2 weeks ago
+            const output = execSync('ollama list', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+            const lines = output.trim().split('\n').slice(1); // skip header
+            for (const line of lines) {
+                const parts = line.trim().split(/\s{2,}/);
+                if (parts.length >= 3) {
+                    const name = parts[0];
+                    const sizeStr = parts[2]; // e.g., "637 MB" or "4.1 GB"
+                    let sizeBytes = 0;
+                    if (sizeStr.includes('GB')) sizeBytes = parseFloat(sizeStr) * 1024 * 1024 * 1024;
+                    else if (sizeStr.includes('MB')) sizeBytes = parseFloat(sizeStr) * 1024 * 1024;
+                    else if (sizeStr.includes('KB')) sizeBytes = parseFloat(sizeStr) * 1024;
+
+                    // Exclude specific embedding models if needed
+                    if (!name.includes('nomic')) {
+                        items.push({
+                            id: name,
+                            name: 'LLM: ' + name,
+                            type: 'ollama',
+                            sizeBytes: sizeBytes,
+                            absolutePath: 'ollama internal registry',
+                            date: new Date()
+                        });
+                    }
+                }
+            }
+        } catch (err) { }
+
+        res.json({ files: items });
     });
 
     // Fetch exact download sizes dynamically
@@ -541,8 +620,8 @@ module.exports = function (config) {
             { id: 'wiki-en-simple', url: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_simple_all_maxi_\\d{4}-\\d{2}\\.zim' },
             { id: 'wiki-en-nopic', url: 'https://download.kiwix.org/zim/wikipedia/', pattern: 'wikipedia_en_all_nopic_\\d{4}-\\d{2}\\.zim' },
             { id: 'wikibooks', url: 'https://download.kiwix.org/zim/wikibooks/', pattern: 'wikibooks_en_all_maxi_\\d{4}-\\d{2}\\.zim' },
-            { id: 'wikihow', url: 'https://download.kiwix.org/zim/other/', pattern: 'wikihow_en_maxi_\\d{4}-\\d{2}\\.zim' },
-            { id: 'stackexchange', url: 'https://download.kiwix.org/zim/stackexchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim' },
+            { id: 'ifixit', url: 'https://download.kiwix.org/zim/ifixit/', pattern: 'ifixit_en_all_\\d{4}-\\d{2}\\.zim' },
+            { id: 'stackexchange', url: 'https://download.kiwix.org/zim/stack_exchange/', pattern: 'stackoverflow\\.com_en_all_\\d{4}-\\d{2}\\.zim' },
             { id: 'medref', url: 'https://download.kiwix.org/zim/other/', pattern: 'mdwiki_en_all_maxi_\\d{4}-\\d{2}\\.zim' }
         ];
 

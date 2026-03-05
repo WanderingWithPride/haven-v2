@@ -46,69 +46,70 @@ const MeshModule = {
 
         const mod = document.getElementById('mod-mesh');
         mod.innerHTML = `
-            <div class="hub-header">
-                <h2>📡 Mesh Networking</h2>
-                <div class="hub-controls">
-                    <button class="hub-btn primary" onclick="MeshModule.toggleReceive()" id="btnMeshRx" ${!isSecureContext ? 'disabled' : ''}>Record (RX)</button>
+            <div class="module-header">
+                <div>
+                    <div class="module-title">Mesh Networking</div>
+                    <div class="module-subtitle">Decentralized survival communication (Audio, Optical, BLE)</div>
                 </div>
+                <button class="btn btn-primary" onclick="MeshModule.toggleReceive()" id="btnMeshRx" ${!isSecureContext ? 'disabled' : ''}>
+                    📡 Record (RX)
+                </button>
             </div>
-            <div class="hub-grid" style="display: block;">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
                 ${secureWarning}
-                <div class="file-panel" style="margin-bottom: 20px; ${!isSecureContext ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                    <h3>Acoustic Data Transmission (Ultrasound/Audio)</h3>
-                    <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
+                
+                <div class="card" style="${!isSecureContext ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                    <h3 style="color:var(--cyan);margin-bottom:8px">Acoustic Data Transmission (MFSK Audio)</h3>
+                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
                         Transmit text messages through the air using Frequency Shift Keying (MFSK). Requires no Wi-Fi or Bluetooth.
                     </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <input type="text" id="meshTxInput" placeholder="Enter message to transmit (e.g. SOS, GPS Coords)" 
-                            style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: #fff; border-radius: 4px;">
-                        <button class="hub-btn" onclick="MeshModule.transmitText()">Transmit (TX)</button>
+                    <div class="search-box" style="max-width: 100%; margin-bottom: 15px; padding-right: 4px;">
+                        <span class="search-icon">🎵</span>
+                        <input type="text" id="meshTxInput" placeholder="Enter message to transmit (e.g. SOS, GPS Coords)">
+                        <button class="btn btn-primary" onclick="MeshModule.transmitText()">Transmit (TX)</button>
                     </div>
                 </div>
                 
-                <div class="file-panel">
-                    <h3>Received Audio Messages</h3>
-                    <div id="meshRxBox" style="min-height: 100px; background: #06060b; border: 1px solid #333; border-radius: 4px; padding: 10px; font-family: monospace; color: #0f0; white-space: pre-wrap; overflow-y: auto;">
-                        Select "Record (RX)" to start listening for acoustic data...
-                    </div>
-                    <div id="meshSpectrum" style="margin-top: 10px; height: 30px; background: #000; position: relative; border-radius: 2px; overflow: hidden; display: none;"></div>
+                <div class="card">
+                    <h3 style="color:var(--cyan);margin-bottom:12px">Received Audio Messages</h3>
+                    <div id="meshRxBox" style="min-height: 100px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'JetBrains Mono', monospace; color: var(--green); white-space: pre-wrap; overflow-y: auto;">Select "Record (RX)" to start listening for acoustic data...</div>
+                    <div id="meshSpectrum" style="margin-top: 12px; height: 40px; background: var(--bg); position: relative; border-radius: var(--radius-sm); overflow: hidden; display: none; border: 1px solid var(--border);"></div>
                 </div>
 
-                <div class="file-panel" style="margin-top: 20px;">
-                    <h3>"Sneakernet" QR Code Sync (Optical)</h3>
-                    <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
-                        Transfer highly resilient offline data using your device's camera. Perfect for noisy environments where acoustic data fails.
+                <div class="card">
+                    <h3 style="color:var(--cyan);margin-bottom:8px">"Sneakernet" QR Code Sync (Optical)</h3>
+                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
+                        Transfer highly resilient offline data using your device's camera. Perfect for noisy environments.
                     </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <input type="text" id="qrTxInput" placeholder="Enter message to generate QR" 
-                            style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid #333; color: #fff; border-radius: 4px;">
-                        <button class="hub-btn primary" onclick="MeshModule.generateQR()">Generate QR</button>
-                        <button class="hub-btn" onclick="MeshModule.startScanQR()" id="btnScanQR">Scan Camera</button>
+                    
+                    <div class="search-box" style="max-width: 100%; margin-bottom: 20px; padding-right: 4px;">
+                        <span class="search-icon">📸</span>
+                        <input type="text" id="qrTxInput" placeholder="Enter message to generate QR payload">
+                        <button class="btn btn-primary" onclick="MeshModule.generateQR()">Generate QR</button>
+                        <button class="btn" onclick="MeshModule.startScanQR()" id="btnScanQR">Scan Camera</button>
                     </div>
 
-                    <div style="display: flex; gap: 20px;">
-                        <div id="qrCodeContainer" style="background: #fff; padding: 10px; display: inline-block; border-radius: 4px; display: none;"></div>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div id="qrCodeContainer" style="background: #fff; padding: 16px; border-radius: var(--radius-sm); display: none;"></div>
                         
-                        <div id="qrScannerContainer" style="display: none; flex-direction: column; gap: 10px;">
-                            <video id="qrVideo" style="width: 100%; max-width: 300px; border: 1px solid #333; border-radius: 4px;"></video>
+                        <div id="qrScannerContainer" style="display: none; flex-direction: column; gap: 12px; flex: 1; min-width: 250px;">
+                            <video id="qrVideo" style="width: 100%; max-width: 320px; border: 2px solid var(--cyan); border-radius: var(--radius-sm); box-shadow: var(--glow-cyan);"></video>
                             <canvas id="qrCanvas" style="display: none;"></canvas>
-                            <div id="qrResult" style="color: #0f0; font-family: monospace; background: #000; padding: 10px; border-radius: 4px; min-height: 50px;">Waiting for QR...</div>
+                            <div id="qrResult" style="color: var(--green); font-family: 'JetBrains Mono', monospace; background: var(--bg); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); min-height: 50px;">Waiting for QR...</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="file-panel" style="margin-top: 20px;">
-                    <h3>Web Bluetooth Sensors (BLE)</h3>
-                    <p style="color: #888; font-size: 0.9em; margin-bottom: 15px;">
-                        Connect to nearby Bluetooth Low Energy (BLE) environmental sensors (like Geiger counters or weather stations) directly from your browser. Root access not required.
+                <div class="card">
+                    <h3 style="color:var(--cyan);margin-bottom:8px">Web Bluetooth Sensors (BLE)</h3>
+                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
+                        Connect to nearby Bluetooth Low Energy (BLE) environmental sensors directly from the browser sandbox.
                     </p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="hub-btn primary" onclick="MeshModule.connectBLE()">Pair Sensor</button>
-                        <button class="hub-btn danger" onclick="MeshModule.disconnectBLE()" id="btnDisconnectBLE" style="display:none;">Disconnect</button>
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="MeshModule.connectBLE()">Pair Sensor</button>
+                        <button class="btn" onclick="MeshModule.disconnectBLE()" id="btnDisconnectBLE" style="display:none; color: var(--red); border-color: rgba(255,68,102,0.3);">Disconnect</button>
                     </div>
-                    <div id="bleDataContainer" style="background: #06060b; border: 1px solid #333; border-radius: 4px; padding: 10px; font-family: monospace; color: #0aa; white-space: pre-wrap; min-height: 100px;">
-                        Waiting for sensor connection...
-                    </div>
+                    <div id="bleDataContainer" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'JetBrains Mono', monospace; color: var(--cyan-dim); white-space: pre-wrap; min-height: 100px;">Waiting for sensor connection...</div>
                 </div>
             </div>
         `;

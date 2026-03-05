@@ -109,6 +109,10 @@
                 <span class="nav-icon">📦</span>
                 <span class="nav-label">Store</span>
             </button>
+            <button class="nav-item" data-module="dtn" onclick="switchModule('dtn')">
+                <span class="nav-icon">🛰️</span>
+                <span class="nav-label">DTN Engine</span>
+            </button>
             <div class="nav-divider"></div>
             <button class="nav-item" data-module="mesh" onclick="switchModule('mesh')">
                 <span class="nav-icon">📡</span>
@@ -154,6 +158,7 @@
         <div class="module" id="mod-chat"></div>
         <div class="module" id="mod-power"></div>
         <div class="module" id="mod-store"></div>
+        <div class="module" id="mod-dtn"></div>
         <div class="module" id="mod-mesh"></div>
     </main>
 
@@ -209,6 +214,7 @@
     <script src="js/p2p.js"></script>
     <script src="js/power.js"></script>
     <script src="js/store.js"></script>
+    <script src="js/dtn.js"></script>
     <script src="js/mesh.js"></script>
 
     <!-- PWA Service Worker Registration -->

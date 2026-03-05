@@ -12,6 +12,7 @@
     "express": "^4.18.2",
     "mime-types": "^2.1.35",
     "multer": "^2.0.0",
+    "multicast-dns": "^7.2.5",
     "music-metadata": "^7.14.0",
     "node-fetch": "^2.7.0",
     "selfsigned": "^5.5.0",

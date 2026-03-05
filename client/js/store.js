@@ -5,6 +5,7 @@
 const StoreModule = {
     catalog: [],
     itemConfigs: {},  // Store configs by ID — avoids inline JSON in onclick
+    currentTab: 'catalog',
 
     async init() {
         const el = document.getElementById('mod-store');
@@ -14,9 +15,35 @@ const StoreModule = {
                     <div class="module-title">Content Store</div>
                     <div class="module-subtitle">Download knowledge packs, LLM models & more</div>
                 </div>
+                <div class="store-tabs" style="display:flex; gap:10px; margin-top: 15px;">
+                    <button id="tab-catalog" class="btn btn-primary" onclick="StoreModule.switchTab('catalog')">📚 Store Catalog</button>
+                    <button id="tab-downloaded" class="btn" style="background:var(--surface2);" onclick="StoreModule.switchTab('downloaded')">💾 Downloaded Content</button>
+                </div>
             </div>
             <div id="storeContent"><div class="loading-spinner"></div></div>`;
+
         await this.loadCatalog();
+    },
+
+    switchTab(tab) {
+        this.currentTab = tab;
+        const btnCat = document.getElementById('tab-catalog');
+        const btnDL = document.getElementById('tab-downloaded');
+
+        if (tab === 'catalog') {
+            btnCat.className = 'btn btn-primary';
+            btnCat.style.background = '';
+            btnDL.className = 'btn';
+            btnDL.style.background = 'var(--surface2)';
+            this.renderCatalog();
+            this.checkExistingDownloads();
+        } else {
+            btnDL.className = 'btn btn-primary';
+            btnDL.style.background = '';
+            btnCat.className = 'btn';
+            btnCat.style.background = 'var(--surface2)';
+            this.renderDownloaded();
+        }
     },
 
     async loadCatalog() {
@@ -33,6 +60,11 @@ const StoreModule = {
     },
 
     render() {
+        if (this.currentTab === 'catalog') this.renderCatalog();
+        else this.renderDownloaded();
+    },
+
+    renderCatalog() {
         const el = document.getElementById('storeContent');
         let html = '';
 
@@ -85,6 +117,60 @@ const StoreModule = {
 
         el.innerHTML = html;
         this.fetchExactSizes();
+    },
+
+    async renderDownloaded() {
+        const el = document.getElementById('storeContent');
+        el.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const res = await authFetch(`${API}/api/store/downloaded`);
+            const data = await res.json();
+
+            if (!data.files || data.files.length === 0) {
+                el.innerHTML = '<div class="card" style="text-align:center; padding: 40px;"><h3 style="color:var(--text-dim);">No offline content downloaded yet.</h3></div>';
+                return;
+            }
+
+            let html = `
+                <div class="card" style="overflow-x: auto;">
+                    <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border); color: var(--text-dim);">
+                                <th style="padding: 12px; min-width: 150px;">Item Name</th>
+                                <th style="padding: 12px; width: 100px;">Type</th>
+                                <th style="padding: 12px; width: 100px;">Size</th>
+                                <th style="padding: 12px; min-width: 300px;">Absolute Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.files.forEach(f => {
+                const icon = f.type === 'zim' ? '📚' : (f.type === 'ollama' ? '🧠' : '🗺️');
+                const typeClr = f.type === 'zim' ? 'var(--cyan)' : (f.type === 'ollama' ? '#a855f7' : 'var(--green)');
+                const sizeStr = (f.sizeBytes / 1024 / 1024 / 1024) > 1
+                    ? (f.sizeBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB'
+                    : (f.sizeBytes / 1024 / 1024).toFixed(1) + ' MB';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px; font-weight: bold;">${icon} ${f.name}</td>
+                        <td style="padding: 12px;"><span class="tag" style="color: ${typeClr}; border-color: ${typeClr}; background: transparent;">${f.type.toUpperCase()}</span></td>
+                        <td style="padding: 12px; font-family: 'JetBrains Mono', monospace;">${sizeStr}</td>
+                        <td style="padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); word-break: break-all;">${f.absolutePath}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            el.innerHTML = html;
+        } catch (e) {
+            el.innerHTML = `<div class="card" style="border-color: var(--red); color: var(--red);">Failed to load offline content: ${e.message}</div>`;
+        }
     },
 
     async fetchExactSizes() {

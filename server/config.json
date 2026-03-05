@@ -1,5 +1,6 @@
 {
     "port": 8888,
+    "mDnsName": "cyberdeck",
     "paths": {
         "music": "/sdcard/Music",
         "photos": "/sdcard/DCIM",

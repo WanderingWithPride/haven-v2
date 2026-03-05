@@ -44,7 +44,7 @@ app.use((req, res, next) => {
     // (e.g. DNS hijacking) but NOT a direct IP access, redirect to CyberDeck.
     // We check if it's an IP address by looking for entirely numbers and dots (or IPv6 colons).
     const isIpAddress = /^[:0-9.]+$/.test(host.split(':')[0]);
-    const isLocalhost = host.includes('localhost');
+    const isLocalhost = host.includes('localhost') || host.includes('.local');
 
     if (host && !isIpAddress && !isLocalhost) {
         console.log(`[Captive Portal] Redirecting external host request: ${host}`);
@@ -63,6 +63,9 @@ app.use('/admin', express.static(path.join(__dirname, 'admin')));
 // Auth routes (public - no middleware)
 app.use('/api/auth', require('./routes/auth')(config));
 
+// Load routes
+const dtnRoutes = require('./routes/dtn')(config);
+
 // Protected API Routes (require login)
 app.use('/api/music', requireAuth, require('./routes/music')(config));
 app.use('/api/photos', requireAuth, require('./routes/photos')(config));
@@ -76,6 +79,7 @@ app.use('/api/survival', requireAuth, require('./routes/survival')(config));
 app.use('/api/vault', requireAuth, require('./routes/vault')(config));
 app.use('/api/power', requireAuth, require('./routes/power')(config));
 app.use('/api/store', requireAuth, require('./routes/store')(config));
+app.use('/api/dtn', dtnRoutes);
 
 // Config API (admin only)
 app.get('/api/config', requireAdmin, (req, res) => {
@@ -318,11 +322,115 @@ pemsPromise.then(pems => {
 
     httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
         const ip = getLanIP();
+        const mDnsName = config.mDnsName || 'cyberdeck';
+
+        // Start mDNS Broadcaster & DTN Discovery
+        try {
+            const mdns = require('multicast-dns')();
+            const fetch = require('node-fetch').default || require('node-fetch');
+            const dtnPeers = new Map();
+            const hostLocal = `${mDnsName}.local`;
+
+            mdns.on('query', function (query) {
+                // Respond to user
+                if (query.questions[0] && query.questions[0].name === hostLocal) {
+                    mdns.respond({
+                        answers: [{ name: hostLocal, type: 'A', class: 'IN', ttl: 300, data: ip }]
+                    });
+                }
+                // Respond to DTN peers
+                if (query.questions[0] && query.questions[0].name === '_cyberdtn._tcp.local') {
+                    mdns.respond({
+                        answers: [{ name: '_cyberdtn._tcp.local', type: 'PTR', class: 'IN', ttl: 120, data: `${os.hostname()}._cyberdtn._tcp.local` }],
+                        additionals: [{ name: `${os.hostname()}._cyberdtn._tcp.local`, type: 'A', class: 'IN', ttl: 120, data: ip }]
+                    });
+                }
+            });
+
+            // Listen for DTN peers
+            mdns.on('response', function (response) {
+                if (!response.answers) return;
+                for (const answer of response.answers) {
+                    if (answer.name === '_cyberdtn._tcp.local' && answer.type === 'PTR') {
+                        const aRecord = response.additionals.find(r => r.name === answer.data && r.type === 'A');
+                        if (aRecord && aRecord.data !== ip) {
+                            dtnPeers.set(aRecord.data, Date.now());
+                        }
+                    }
+                }
+            });
+
+            // Broadcast DTN presence
+            setInterval(() => {
+                mdns.query({ questions: [{ name: '_cyberdtn._tcp.local', type: 'PTR' }] });
+            }, 10000);
+
+            // DTN Epidemic Sync Loop
+            setInterval(async () => {
+                const now = Date.now();
+                for (const [peerIp, lastSeen] of dtnPeers.entries()) {
+                    if (now - lastSeen > 120000) dtnPeers.delete(peerIp);
+                }
+
+                if (dtnPeers.size === 0) return;
+
+                const dtnSpool = path.join(__dirname, 'dtn_spool');
+                let myKnownIds = [];
+                let myPackets = [];
+                try {
+                    if (fs.existsSync(dtnSpool)) {
+                        const files = fs.readdirSync(dtnSpool);
+                        for (const f of files) {
+                            if (!f.endsWith('.json')) continue;
+                            myKnownIds.push(f.replace('.json', ''));
+                            myPackets.push(JSON.parse(fs.readFileSync(path.join(dtnSpool, f))));
+                        }
+                    }
+                } catch (e) { }
+
+                for (const peerIp of dtnPeers.keys()) {
+                    try {
+                        const res = await fetch(`http://${peerIp}:${config.port}/api/dtn/sync/check`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ known_ids: myKnownIds })
+                        });
+                        const data = await res.json();
+
+                        if (data.payloads_for_you && data.payloads_for_you.length > 0) {
+                            for (const p of data.payloads_for_you) {
+                                try { fs.writeFileSync(path.join(dtnSpool, `${p.id}.json`), JSON.stringify(p, null, 2)); } catch (e) { }
+                            }
+                            console.log(`[DTN] ↓ Received ${data.payloads_for_you.length} packets from ${peerIp}`);
+                        }
+
+                        if (data.my_known_ids) {
+                            const peerNeeds = myPackets.filter(myP => !data.my_known_ids.includes(myP.id));
+                            if (peerNeeds.length > 0) {
+                                await fetch(`http://${peerIp}:${config.port}/api/dtn/sync/receive`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ packets: peerNeeds })
+                                });
+                                console.log(`[DTN] ↑ Sent ${peerNeeds.length} packets to ${peerIp}`);
+                            }
+                        }
+                    } catch (e) { }
+                }
+            }, 15000);
+
+            console.log(`\x1b[35m  \x1b[1mmDNS Service:\x1b[0m   Broadcasting as ${hostLocal}\x1b[0m`);
+            console.log(`\x1b[36m  \x1b[1mDTN Service:\x1b[0m    Auto-Discovery active via _cyberdtn._tcp.local\x1b[0m`);
+        } catch (e) {
+            console.error('Failed to start mDNS:', e.message);
+        }
+
         console.log('');
         console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
         console.log('\x1b[36m  ║      ⚡ CyberDeck Server Running ⚡   ║\x1b[0m');
         console.log('\x1b[36m  ╚═══════════════════════════════════════╝\x1b[0m');
         console.log('');
+        console.log(`  \x1b[1mOffline URL:\x1b[0m    http://${mDnsName}.local:${PORT}`);
         console.log(`  \x1b[1mLocal (HTTP):\x1b[0m   http://localhost:${PORT}`);
         console.log(`  \x1b[1mNetwork (HTTP):\x1b[0m http://${ip}:${PORT}`);
         console.log(`  \x1b[32m\x1b[1mWebRTC (HTTPS):\x1b[0m https://${ip}:${HTTPS_PORT}  <-- USE THIS FOR MESH APP\x1b[0m`);

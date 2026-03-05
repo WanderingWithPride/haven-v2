@@ -165,6 +165,7 @@ function switchModule(name) {
             case 'chat': ChatModule.init(); break;
             case 'power': PowerModule.init(); break;
             case 'store': StoreModule.init(); break;
+            case 'dtn': DtnModule.init(); break;
             case 'mesh': MeshModule.init(); break;
         }
     }
