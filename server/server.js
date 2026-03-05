@@ -321,7 +321,6 @@ pemsPromise.then(pems => {
     });
 
     httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
-        const ip = getLanIP();
         const mDnsName = config.mDnsName || 'cyberdeck';
         const dtnPeers = new Map();
 
@@ -331,17 +330,18 @@ pemsPromise.then(pems => {
             const hostLocal = `${mDnsName}.local`;
 
             mdns.on('query', function (query) {
+                const currentIp = getLanIP();
                 // Respond to user
                 if (query.questions[0] && query.questions[0].name === hostLocal) {
                     mdns.respond({
-                        answers: [{ name: hostLocal, type: 'A', class: 'IN', ttl: 300, data: ip }]
+                        answers: [{ name: hostLocal, type: 'A', class: 'IN', ttl: 300, data: currentIp }]
                     });
                 }
                 // Respond to DTN peers
                 if (query.questions[0] && query.questions[0].name === '_cyberdtn._tcp.local') {
                     mdns.respond({
                         answers: [{ name: '_cyberdtn._tcp.local', type: 'PTR', class: 'IN', ttl: 120, data: `${os.hostname()}._cyberdtn._tcp.local` }],
-                        additionals: [{ name: `${os.hostname()}._cyberdtn._tcp.local`, type: 'A', class: 'IN', ttl: 120, data: ip }]
+                        additionals: [{ name: `${os.hostname()}._cyberdtn._tcp.local`, type: 'A', class: 'IN', ttl: 120, data: currentIp }]
                     });
                 }
             });
@@ -349,10 +349,11 @@ pemsPromise.then(pems => {
             // Listen for DTN peers
             mdns.on('response', function (response) {
                 if (!response.answers) return;
+                const currentIp = getLanIP();
                 for (const answer of response.answers) {
                     if (answer.name === '_cyberdtn._tcp.local' && answer.type === 'PTR') {
                         const aRecord = response.additionals.find(r => r.name === answer.data && r.type === 'A');
-                        if (aRecord && aRecord.data !== ip) {
+                        if (aRecord && aRecord.data !== currentIp) {
                             dtnPeers.set(aRecord.data, Date.now());
                         }
                     }
@@ -379,7 +380,8 @@ pemsPromise.then(pems => {
             udpServer.on('message', (msg, rinfo) => {
                 try {
                     const payload = JSON.parse(msg.toString());
-                    if (payload.cyberdtn && rinfo.address !== ip) {
+                    const currentIp = getLanIP();
+                    if (payload.cyberdtn && rinfo.address !== currentIp) {
                         if (!dtnPeers.has(rinfo.address)) {
                             console.log(`\x1b[32m[DTN] UDP Beacon Discovered P2P Node: ${rinfo.address}\x1b[0m`);
                         }
@@ -490,19 +492,20 @@ pemsPromise.then(pems => {
 
         console.log('');
         console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
-        console.log('\x1b[36m  ║      ⚡ CyberDeck Server Running ⚡   ║\x1b[0m');
+        console.log('\x1b[36m  ║\x1b[0m \x1b[33m⚡ \x1b[34mCyberDeck Server Running\x1b[0m \x1b[33m⚡\x1b[0m\x1b[36m         ║\x1b[0m');
         console.log('\x1b[36m  ╚═══════════════════════════════════════╝\x1b[0m');
         console.log('');
+
+        const bootIp = getLanIP();
         console.log(`  \x1b[1mOffline URL:\x1b[0m    http://${mDnsName}.local:${PORT}`);
         console.log(`  \x1b[1mLocal (HTTP):\x1b[0m   http://localhost:${PORT}`);
-        console.log(`  \x1b[1mNetwork (HTTP):\x1b[0m http://${ip}:${PORT}`);
-        console.log(`  \x1b[32m\x1b[1mWebRTC (HTTPS):\x1b[0m https://${ip}:${HTTPS_PORT}  <-- USE THIS FOR MESH APP\x1b[0m`);
-        console.log(`  \x1b[1mAdmin:\x1b[0m          http://${ip}:${PORT}/admin`);
-        console.log(`  \x1b[1mChat WS:\x1b[0m        ws://${ip}:${PORT}/ws/chat`);
+        console.log(`  \x1b[1mNetwork (HTTP):\x1b[0m http://${bootIp}:${PORT} \x1b[90m(Adapts to IP changes dynamically)\x1b[0m`);
+        console.log(`  \x1b[1m\x1b[32mWebRTC (HTTPS):\x1b[0m \x1b[32mhttps://${bootIp}:${HTTPS_PORT}\x1b[0m   <-- USE THIS FOR MESH APP`);
+        console.log(`  \x1b[1mAdmin:\x1b[0m          http://${bootIp}:${PORT}/admin`);
+        console.log(`  \x1b[1mChat WS:\x1b[0m        ws://${bootIp}:${PORT}/ws/chat`);
         console.log('');
         console.log('\x1b[90m  Note: You will see a "Your connection is not private" warning\x1b[0m');
-        console.log('\x1b[90m  when accessing HTTPS. Click "Advanced -> Proceed" to continue.\x1b[0m');
-        console.log('');
+        console.log('\x1b[90m  when accessing HTTPS. Click "Advanced -> Proceed" to continue.\x1b[0m\n');
     });
 }).catch(err => {
     console.error('Failed to generate self-signed certificate:', err);
