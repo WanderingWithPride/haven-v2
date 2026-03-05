@@ -72,6 +72,26 @@ module.exports = function setupChat(server) {
                             candidate: msg.candidate
                         });
                         break;
+
+                    // DTN Engine: Background Auto-Sync Relay
+                    // Bypasses Android mDNS blockage by routing epidemic sync over established Websockets
+                    case 'dtn-sync':
+                        broadcast({
+                            type: 'dtn-sync',
+                            from: msg.from,
+                            dtnPayload: msg.dtnPayload
+                        });
+                        break;
+                        broadcast({
+                            type: msg.type,
+                            from: username,
+                            target: msg.target, // The intended recipient
+                            fileName: msg.fileName,
+                            fileSize: msg.fileSize,
+                            sdp: msg.sdp,
+                            candidate: msg.candidate
+                        });
+                        break;
                 }
             } catch (err) {
                 console.error('Chat error:', err.message);

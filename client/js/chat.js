@@ -47,6 +47,22 @@ const ChatModule = {
                     type: 'join',
                     username: Auth.user?.username || 'Anonymous'
                 }));
+
+                // DTN Over-The-Air WebSocket Bridge
+                // (Bypasses Android mDNS blockage by piggybacking on the LAN Chat Relay)
+                this.dtnSyncInterval = setInterval(async () => {
+                    try {
+                        const res = await authFetch('/api/dtn/packets');
+                        const data = await res.json();
+                        if (data.packets && data.packets.length > 0) {
+                            this.ws.send(JSON.stringify({
+                                type: 'dtn-sync',
+                                from: Auth.user?.username || 'Anonymous',
+                                dtnPayload: data.packets
+                            }));
+                        }
+                    } catch (e) { /* ignore */ }
+                }, 10000); // Blast local spool to mesh every 10 seconds
             };
 
             this.ws.onmessage = (event) => {
@@ -55,6 +71,7 @@ const ChatModule = {
             };
 
             this.ws.onclose = () => {
+                if (this.dtnSyncInterval) clearInterval(this.dtnSyncInterval);
                 document.getElementById('chatStatus').textContent = 'Disconnected — reconnecting...';
                 setTimeout(() => this.connect(), 3000);
             };
@@ -96,6 +113,25 @@ const ChatModule = {
                 const countEl = document.getElementById('chatUserCount');
                 if (countEl) countEl.textContent = `${msg.count} online`;
                 if (window.P2PModule) window.P2PModule.updateUsers(msg.users);
+                break;
+
+            case 'dtn-sync':
+                // Someone sent DTN packets through the WebSocket!
+                // Skip our own broadcasts
+                if (msg.from === (Auth.user?.username || 'Anonymous')) break;
+
+                // Silently push them to our local spool
+                if (msg.dtnPayload && msg.dtnPayload.length > 0) {
+                    authFetch('/api/dtn/sync/receive', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ packets: msg.dtnPayload })
+                    }).catch(e => { /* ignore silent failure */ });
+                }
+                // Also trigger a UI refresh if the DTN tab is open
+                if (window.DtnModule && typeof window.DtnModule.refresh === 'function') {
+                    window.DtnModule.refresh();
+                }
                 break;
 
             case 'webrtc-offer':
