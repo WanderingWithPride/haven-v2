@@ -5,6 +5,13 @@
 const DtnModule = {
     packets: [],
 
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
     async init() {
         const el = document.getElementById('mod-dtn');
         el.innerHTML = `
@@ -184,8 +191,8 @@ const DtnModule = {
                     <tr style="border-bottom: 1px solid var(--border);">
                         <td style="padding: 10px; font-family: monospace; color: var(--text-dim);">${shortId}</td>
                         <td style="padding: 10px;"><span class="tag" style="color: ${typeClr}; border-color: ${typeClr}; background: transparent;">${p.type.toUpperCase()}</span></td>
-                        <td style="padding: 10px;"><strong style="color:#fff">${escapeHtml(p.sender)}</strong> → <span style="color:var(--text-dim)">${escapeHtml(p.dest)}</span></td>
-                        <td style="padding: 10px;">${escapeHtml(payloadPreview)}</td>
+                        <td style="padding: 10px;"><strong style="color:#fff">${this.escapeHtml(p.sender)}</strong> → <span style="color:var(--text-dim)">${this.escapeHtml(p.dest)}</span></td>
+                        <td style="padding: 10px;">${this.escapeHtml(payloadPreview)}</td>
                         <td style="padding: 10px; font-family: monospace; ${hoursLeft < 2 ? 'color: var(--red);' : 'color: var(--text-dim);'}">${hoursLeft}h</td>
                     </tr>
                 `;
