@@ -324,11 +324,9 @@ pemsPromise.then(pems => {
         const ip = getLanIP();
         const mDnsName = config.mDnsName || 'cyberdeck';
 
-        // Start mDNS Broadcaster & DTN Discovery
+        // Start mDNS Broadcaster
         try {
             const mdns = require('multicast-dns')();
-            const fetch = require('node-fetch').default || require('node-fetch');
-            const dtnPeers = new Map();
             const hostLocal = `${mDnsName}.local`;
 
             mdns.on('query', function (query) {
@@ -365,129 +363,129 @@ pemsPromise.then(pems => {
                 mdns.query({ questions: [{ name: '_cyberdtn._tcp.local', type: 'PTR' }] });
             }, 10000);
 
-            // Fallback UDP Broadcast Beacon (Bypass Android Hotspot mDNS filtering)
-            try {
-                const dgram = require('dgram');
-                const udpClient = dgram.createSocket('udp4');
-                udpClient.bind(() => udpClient.setBroadcast(true));
+            console.log(`\x1b[35m  \x1b[1mmDNS Service:\x1b[0m   Broadcasting as ${hostLocal}\x1b[0m`);
+        } catch (e) {
+            console.error('\x1b[31m  [!] mDNS Disabled (Missing multicast-dns module)\x1b[0m');
+        }
 
-                const udpServer = dgram.createSocket('udp4');
-                udpServer.on('message', (msg, rinfo) => {
-                    try {
-                        const payload = JSON.parse(msg.toString());
-                        if (payload.cyberdtn && rinfo.address !== ip) {
-                            if (!dtnPeers.has(rinfo.address)) {
-                                console.log(`\x1b[32m[DTN] UDP Beacon Discovered P2P Node: ${rinfo.address}\x1b[0m`);
-                            }
-                            dtnPeers.set(rinfo.address, Date.now());
+        // Fallback UDP Broadcast Beacon (Bypass Android Hotspot mDNS filtering)
+        try {
+            const dgram = require('dgram');
+            const udpClient = dgram.createSocket('udp4');
+            udpClient.bind(() => udpClient.setBroadcast(true));
+
+            const udpServer = dgram.createSocket('udp4');
+            udpServer.on('message', (msg, rinfo) => {
+                try {
+                    const payload = JSON.parse(msg.toString());
+                    if (payload.cyberdtn && rinfo.address !== ip) {
+                        if (!dtnPeers.has(rinfo.address)) {
+                            console.log(`\x1b[32m[DTN] UDP Beacon Discovered P2P Node: ${rinfo.address}\x1b[0m`);
                         }
-                    } catch (e) {
-                        console.error('[DTN] UDP Ping Error:', e.message);
+                        dtnPeers.set(rinfo.address, Date.now());
                     }
-                });
-                udpServer.bind(8887, '0.0.0.0', () => {
-                    console.log(`\x1b[36m  \x1b[1mDTN UDP Beacon:\x1b[0m Active on port 8887\x1b[0m`);
-                });
+                } catch (e) {
+                    console.error('[DTN] UDP Ping Error:', e.message);
+                }
+            });
+            udpServer.bind(8887, '0.0.0.0', () => { });
 
-                // Blast presence across the actual subnet boundary
-                setInterval(() => {
-                    try {
-                        const msg = Buffer.from(JSON.stringify({ cyberdtn: true }));
-                        udpClient.send(msg, 0, msg.length, 8887, '255.255.255.255');
-                    } catch (e) {
-                        console.error('\x1b[31m[DTN] UDP Sent Error:\x1b[0m', e.message);
-                    }
-                }, 10000);
-            } catch (e) {
-                console.error('Failed to start UDP beacon:', e.message);
+            // Blast presence across the actual subnet boundary
+            setInterval(() => {
+                try {
+                    const msg = Buffer.from(JSON.stringify({ cyberdtn: true }));
+                    udpClient.send(msg, 0, msg.length, 8887, '255.255.255.255');
+                } catch (e) {
+                    console.error('\x1b[31m[DTN] UDP Sent Error:\x1b[0m', e.message);
+                }
+            }, 10000);
+
+            console.log(`\x1b[36m  \x1b[1mDTN Service:\x1b[0m    Auto-Discovery active via UDP/mDNS\x1b[0m`);
+        } catch (e) {
+            console.error('Failed to start UDP beacon:', e.message);
+        }
+
+        // DTN Epidemic Sync Loop
+        setInterval(async () => {
+            const now = Date.now();
+            for (const [peerIp, lastSeen] of dtnPeers.entries()) {
+                if (now - lastSeen > 120000) dtnPeers.delete(peerIp);
             }
 
-            // DTN Epidemic Sync Loop
-            setInterval(async () => {
-                const now = Date.now();
-                for (const [peerIp, lastSeen] of dtnPeers.entries()) {
-                    if (now - lastSeen > 120000) dtnPeers.delete(peerIp);
+            if (dtnPeers.size === 0) return;
+
+            const dtnSpool = path.join(__dirname, 'dtn_spool');
+            let myKnownIds = [];
+            let myPackets = [];
+            try {
+                if (fs.existsSync(dtnSpool)) {
+                    const files = fs.readdirSync(dtnSpool);
+                    for (const f of files) {
+                        if (!f.endsWith('.json')) continue;
+                        myKnownIds.push(f.replace('.json', ''));
+                        myPackets.push(JSON.parse(fs.readFileSync(path.join(dtnSpool, f))));
+                    }
                 }
+            } catch (e) { }
 
-                if (dtnPeers.size === 0) return;
-
-                const dtnSpool = path.join(__dirname, 'dtn_spool');
-                let myKnownIds = [];
-                let myPackets = [];
+            // Helper to save a packet to spool
+            const savePacket = (packet) => {
                 try {
-                    if (fs.existsSync(dtnSpool)) {
-                        const files = fs.readdirSync(dtnSpool);
-                        for (const f of files) {
-                            if (!f.endsWith('.json')) continue;
-                            myKnownIds.push(f.replace('.json', ''));
-                            myPackets.push(JSON.parse(fs.readFileSync(path.join(dtnSpool, f))));
-                        }
+                    const filePath = path.join(dtnSpool, `${packet.id}.json`);
+                    if (!fs.existsSync(filePath)) {
+                        fs.writeFileSync(filePath, JSON.stringify(packet, null, 2));
+                        return true;
                     }
-                } catch (e) { }
-
-                // Helper to save a packet to spool
-                const savePacket = (packet) => {
-                    try {
-                        const filePath = path.join(dtnSpool, `${packet.id}.json`);
-                        if (!fs.existsSync(filePath)) {
-                            fs.writeFileSync(filePath, JSON.stringify(packet, null, 2));
-                            return true;
-                        }
-                    } catch (e) {
-                        console.error(`[DTN] Error saving packet ${packet.id}:`, e.message);
-                    }
-                    return false;
-                };
-
-                for (const peerIp of dtnPeers.keys()) {
-                    try {
-                        // Ignore self-signed certs for internal P2P connections
-                        const https = require('https');
-                        const agent = new https.Agent({ rejectUnauthorized: false });
-
-                        const checkRes = await fetch(`https://${peerIp}:${HTTPS_PORT}/api/dtn/sync/check`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ known_ids: myKnownIds }),
-                            timeout: 5000,
-                            agent: agent
-                        });
-                        const data = await checkRes.json();
-
-                        // Store anything they sent us
-                        if (data.payloads_for_you && data.payloads_for_you.length > 0) {
-                            let r = 0;
-                            for (const p of data.payloads_for_you) {
-                                if (savePacket(p)) r++;
-                            }
-                            if (r > 0) console.log(`[DTN] Auto-Sync: Received ${r} missing packets from ${peerIp}`);
-                        }
-
-                        // Send them what they need
-                        if (data.my_known_ids) {
-                            const peerNeeds = myPackets.filter(myP => !data.my_known_ids.includes(myP.id));
-                            if (peerNeeds.length > 0) {
-                                await fetch(`https://${peerIp}:${HTTPS_PORT}/api/dtn/sync/receive`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ packets: peerNeeds }),
-                                    timeout: 5000,
-                                    agent: agent
-                                });
-                                console.log(`[DTN] Auto-Sync: Sent ${peerNeeds.length} missing packets to ${peerIp}`);
-                            }
-                        }
-                    } catch (err) {
-                        console.error('[DTN] Auto-Sync fetch error:', err.message);
-                    }
+                } catch (e) {
+                    console.error(`[DTN] Error saving packet ${packet.id}:`, e.message);
                 }
-            }, 15000);
+                return false;
+            };
 
-            console.log(`\x1b[35m  \x1b[1mmDNS Service:\x1b[0m   Broadcasting as ${hostLocal}\x1b[0m`);
-            console.log(`\x1b[36m  \x1b[1mDTN Service:\x1b[0m    Auto-Discovery active via _cyberdtn._tcp.local\x1b[0m`);
-        } catch (e) {
-            console.error('Failed to start mDNS:', e.message);
-        }
+            for (const peerIp of dtnPeers.keys()) {
+                try {
+                    // Ignore self-signed certs for internal P2P connections
+                    const https = require('https');
+                    const agent = new https.Agent({ rejectUnauthorized: false });
+                    const fetch = require('node-fetch').default || require('node-fetch');
+
+                    const checkRes = await fetch(`https://${peerIp}:${HTTPS_PORT}/api/dtn/sync/check`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ known_ids: myKnownIds }),
+                        timeout: 5000,
+                        agent: agent
+                    });
+                    const data = await checkRes.json();
+
+                    // Store anything they sent us
+                    if (data.payloads_for_you && data.payloads_for_you.length > 0) {
+                        let r = 0;
+                        for (const p of data.payloads_for_you) {
+                            if (savePacket(p)) r++;
+                        }
+                        if (r > 0) console.log(`[DTN] Auto-Sync: Received ${r} missing packets from ${peerIp}`);
+                    }
+
+                    // Send them what they need
+                    if (data.my_known_ids) {
+                        const peerNeeds = myPackets.filter(myP => !data.my_known_ids.includes(myP.id));
+                        if (peerNeeds.length > 0) {
+                            await fetch(`https://${peerIp}:${HTTPS_PORT}/api/dtn/sync/receive`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ packets: peerNeeds }),
+                                timeout: 5000,
+                                agent: agent
+                            });
+                            console.log(`[DTN] Auto-Sync: Sent ${peerNeeds.length} missing packets to ${peerIp}`);
+                        }
+                    }
+                } catch (err) {
+                    // console.error('[DTN] Auto-Sync fetch error:', err.message); // Silenced to prevent spam if peer is offline
+                }
+            }
+        }, 15000);
 
         console.log('');
         console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
