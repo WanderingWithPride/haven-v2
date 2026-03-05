@@ -27,7 +27,9 @@ A **self-hosted survival/utility platform** that turns your Android phone (or an
 |--------|-------------|
 | 🛠️ **Utilities** | Built-in tools: Compass, Calculator, Unit Converter, Morse Code generator, Flashlight toggle, Coordinates. |
 | 📡 **LAN Chat** | Local area network chat room using WebSockets. Works entirely offline across devices on the same Wi-Fi. |
-| 📦 **Store** | Built-in downloader to easily grab LLM models and knowledge packs. Features a robust **background downloader** with HTTP Range Pause/Resume support. |
+| � **DTN Engine** | Delay-Tolerant Networking. Asynchronous store-and-forward packet routing between isolated CyberDeck nodes. Features automatic background Epidemic Sync via UDP beacons and mDNS. |
+| 🕸️ **Mesh Network** | physical layer air-gapped data transfer. Transmit data via Acoustic MFSK (audio), Optical QR Codes, or Web Bluetooth (BLE) sensors. |
+| �📦 **Store** | Built-in downloader to easily grab LLM models and knowledge packs. Features a robust **background downloader** with HTTP Range Pause/Resume support. |
 | 🔋 **Power** | System monitor showing CPU load, RAM usage, storage space, battery level, internal temperature, and active service status. |
 | 📱 **PWA Ready** | **Progressive Web App** architecture. Install CyberDeck to your device's home screen and cache the UI shell for immediate offline loading. |
 
@@ -114,6 +116,19 @@ Access the admin dashboard to manage your CyberDeck node:
 2. To share a file directly with another user without using server storage, go to the **Files** app.
 3. Next to any local file, click the `📡` (P2P Share) icon.
 4. Select a user from the dropdown at the top to establish a direct WebRTC connection and transfer the file peer-to-peer.
+
+### Delay-Tolerant Networking (DTN)
+The DTN engine allows disparate CyberDeck nodes to exchange messages and data payloads asynchronously.
+1. Open the **DTN Engine** module. Write a packet directed to a specific user (or `ALL`).
+2. The packet is saved to your local `dtn_spool` directory.
+3. When your device comes within Wi-Fi range of another CyberDeck node, the servers automatically discover each other via **mDNS** and **UDP Subnet Beacons** (bypassing Android hotspot restrictions).
+4. The servers perform a TLS-encrypted **Epidemic Sync** in the background, exchanging all new packets. As you walk between isolated networks, your node will physically carry and propagate the data payloads across the air-gap! 
+
+### Mesh Data Radios (Acoustic / Optical)
+If two devices cannot physically connect to the same Wi-Fi router, you can bridge the air-gap natively:
+1. Open the **Mesh** module. 
+2. Use **Acoustic MFSK** to encode text payloads into audio frequencies. Place two phones near each other, click "Record (RX)" on one, and "Transmit (TX)" on the other to send text over soundwaves (no radio needed).
+3. Use the **Sneakernet QR Code** generator to visually exfiltrate small cryptographic keys or data blocks via the camera.
 
 ## 🏗️ Architecture
 
