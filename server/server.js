@@ -600,7 +600,15 @@ pemsPromise.then(pems => {
                     peers.push({ ip, lastSeen, agoMs: now - lastSeen });
                 }
             }
-            res.json({ peers, self: getLanIP() });
+            // Android/Termux blocks os.networkInterfaces(). Fallback to the socket IP.
+            let selfIp = getLanIP();
+            if (selfIp === '127.0.0.1' || selfIp === '::1') {
+                const socketIp = req.socket.localAddress;
+                // Remove IPv6 mapping prefix if present (e.g., ::ffff:192.168.1.50)
+                if (socketIp) selfIp = socketIp.includes('::ffff:') ? socketIp.split('::ffff:')[1] : socketIp;
+            }
+
+            res.json({ peers, self: selfIp });
         });
 
         // DTN Epidemic Sync Loop

@@ -760,7 +760,7 @@ module.exports = function (config) {
                             type: 'ollama',
                             sizeBytes,
                             sizeMB: (sizeBytes / (1024 * 1024)).toFixed(1),
-                            pullable: false  // Ollama models can't be file-pulled; peer needs to `ollama pull`
+                            pullable: true  // Enabled pulling Ollama models
                         };
 
                         // Check for license sidecar
@@ -871,10 +871,42 @@ module.exports = function (config) {
         try {
             const port = config.httpsPort || 8443;
             const url = `https://${peerIp}:${port}/api/store/serve/${encodeURIComponent(filename)}`;
-            console.log(`[LAN Sync] Pulling file from peer: ${url}`);
+            console.log(`[LAN Sync] Pulling ${filename} from peer: ${url}`);
 
-            // Download using existing infrastructure
-            downloadFile(url, dest, dlId, activeDownloads, activeProcesses);
+            if (filename.includes(':')) {
+                // It's likely an Ollama model notation (e.g. llama3:8b)
+                // Since CyberDeck isn't a full OCI registry, we just trigger a normal `ollama pull`
+                // on the local machine to fetch it from the official servers, acting as a "recommendation".
+                // In the future for air-gapped support we could manually transfer the blobs.
+                activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Fetching AI Model via Ollama...`, type: 'ollama', dest: '' });
+                const { spawn } = require('child_process');
+                const proc = spawn('ollama', ['pull', filename]);
+                activeProcesses.set(dlId, proc);
+
+                proc.stdout.on('data', (data) => {
+                    const output = data.toString();
+                    const d = activeDownloads.get(dlId) || {};
+                    d.output = output.split('\n').filter(l => l.trim()).pop() || d.output;
+                    const pctMatch = output.match(/(\d+)%/);
+                    if (pctMatch) d.progress = parseInt(pctMatch[1]);
+                    activeDownloads.set(dlId, d);
+                });
+
+                proc.stderr.on('data', (data) => console.error('[LAN Sync] Ollama Pull Error:', data.toString()));
+
+                proc.on('close', (code) => {
+                    if (code === 0) {
+                        activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'complete', progress: 100 });
+                    } else {
+                        activeDownloads.set(dlId, { ...activeDownloads.get(dlId), status: 'failed', output: 'Ollama pull failed.' });
+                    }
+                    activeProcesses.delete(dlId);
+                });
+
+            } else {
+                // Download file using existing HTTP stream infrastructure
+                downloadFile(url, dest, dlId, activeDownloads, activeProcesses);
+            }
 
             // Write license sidecar if provided
             if (licenseData) {
