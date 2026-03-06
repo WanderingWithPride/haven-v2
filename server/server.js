@@ -420,14 +420,27 @@ app.post('/api/terminal', requireAdmin, (req, res) => {
 // Get LAN IP
 function getLanIP() {
     const interfaces = os.networkInterfaces();
+    let bestIp = null;
+    let fallbackIp = '127.0.0.1';
+
     for (const name of Object.keys(interfaces)) {
+        // Skip obvious virtual/tunnel interfaces
+        if (name.toLowerCase().includes('vbox') || name.toLowerCase().includes('vmware')) continue;
+
         for (const iface of interfaces[name]) {
             if (iface.family === 'IPv4' && !iface.internal) {
-                return iface.address;
+                // Prioritize typical private subnets
+                if (iface.address.startsWith('192.168.') ||
+                    iface.address.startsWith('10.') ||
+                    iface.address.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) {
+                    bestIp = iface.address;
+                } else if (!bestIp) {
+                    fallbackIp = iface.address;
+                }
             }
         }
     }
-    return '127.0.0.1';
+    return bestIp || fallbackIp;
 }
 
 // SPA fallback - serve client index.html for any unmatched route

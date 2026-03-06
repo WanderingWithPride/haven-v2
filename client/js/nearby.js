@@ -13,15 +13,13 @@ const NearbyModule = {
         el.innerHTML = `
             <div class="module-header">
                 <div>
-            <div class="module-header">
-                <div>
                     <div class="module-title">Nearby CyberDecks</div>
                     <div class="module-subtitle">Discover and sync content with nearby nodes</div>
                 </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 20px; background: var(--surface2); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
                 <span class="search-icon">📡</span>
-                <input type="text" id="manual-peer-ip" class="input" placeholder="Enter peer IP (e.g. 192.168.1.50)..." style="flex: 1; border: none; background: transparent;"
+                <input type="text" id="manual-peer-ip" class="input" placeholder="Enter peer IP (e.g. 192.168.1.50)..." style="flex: 1; border: none; background: transparent; color: var(--text);"
                     onkeydown="if(event.key==='Enter') NearbyModule.connectManual()">
                 <button class="btn btn-primary btn-sm" onclick="NearbyModule.connectManual()">Connect</button>
             </div>
