@@ -708,6 +708,8 @@ module.exports = function (config) {
     // Other CyberDeck nodes call this to see what we have available
     router.get('/library', (req, res) => {
         const items = [];
+
+        // 1. ZIM files and other downloaded content
         try {
             const files = fs.readdirSync(DOWNLOADS_DIR);
             for (const f of files) {
@@ -718,9 +720,11 @@ module.exports = function (config) {
 
                 const item = {
                     filename: f,
+                    type: f.endsWith('.zim') ? 'zim' : 'file',
                     sizeBytes: stat.size,
                     sizeMB: (stat.size / (1024 * 1024)).toFixed(1),
-                    modified: stat.mtime
+                    modified: stat.mtime,
+                    pullable: true
                 };
 
                 // Attach license sidecar if it exists
@@ -733,6 +737,43 @@ module.exports = function (config) {
                 } catch (e) { }
 
                 items.push(item);
+            }
+        } catch (e) { }
+
+        // 2. Ollama Models
+        try {
+            const { execSync } = require('child_process');
+            const output = execSync('ollama list', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+            const lines = output.trim().split('\n').slice(1);
+            for (const line of lines) {
+                const parts = line.trim().split(/\s{2,}/);
+                if (parts.length >= 3) {
+                    const modelName = parts[0];
+                    const sizeStr = parts[2];
+                    let sizeBytes = 0;
+                    if (sizeStr.includes('GB')) sizeBytes = parseFloat(sizeStr) * 1024 * 1024 * 1024;
+                    else if (sizeStr.includes('MB')) sizeBytes = parseFloat(sizeStr) * 1024 * 1024;
+
+                    if (!modelName.includes('nomic')) {
+                        const item = {
+                            filename: modelName,
+                            type: 'ollama',
+                            sizeBytes,
+                            sizeMB: (sizeBytes / (1024 * 1024)).toFixed(1),
+                            pullable: false  // Ollama models can't be file-pulled; peer needs to `ollama pull`
+                        };
+
+                        // Check for license sidecar
+                        const sidecarPath = path.join(DOWNLOADS_DIR, `${modelName.replace(/[:/]/g, '-')}.license.json`);
+                        try {
+                            if (fs.existsSync(sidecarPath)) {
+                                item.license = JSON.parse(fs.readFileSync(sidecarPath, 'utf-8'));
+                            }
+                        } catch (e) { }
+
+                        items.push(item);
+                    }
+                }
             }
         } catch (e) { }
 

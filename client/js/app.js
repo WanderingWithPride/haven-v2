@@ -165,15 +165,20 @@ function switchModule(name) {
             case 'chat': ChatModule.init(); break;
             case 'power': PowerModule.init(); break;
             case 'store': StoreModule.init(); break;
+            case 'nearby': NearbyModule.init(); break;
             case 'dtn': DtnModule.init(); break;
             case 'mesh': MeshModule.init(); break;
         }
     }
 
-    // Handle player bar padding
+    // Show player bar only on music tab
     const playerBar = document.getElementById('playerBar');
-    if (playerBar.style.display !== 'none') {
+    if (name === 'music' && MusicPlayer.currentTrack) {
+        playerBar.style.display = 'flex';
         modEl.classList.add('has-player');
+    } else {
+        playerBar.style.display = 'none';
+        modEl.classList.remove('has-player');
     }
 
     // Close sidebar on mobile

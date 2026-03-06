@@ -18,7 +18,6 @@ const StoreModule = {
                 <div class="store-tabs" style="display:flex; gap:8px; margin-top: 15px; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px;">
                     <button id="tab-catalog" class="btn btn-primary" style="white-space:nowrap;font-size:13px;" onclick="StoreModule.switchTab('catalog')">📚 Catalog</button>
                     <button id="tab-downloaded" class="btn" style="background:var(--surface2);white-space:nowrap;font-size:13px;" onclick="StoreModule.switchTab('downloaded')">💾 Downloaded</button>
-                    <button id="tab-nearby" class="btn" style="background:var(--surface2);white-space:nowrap;font-size:13px;" onclick="StoreModule.switchTab('nearby')">📡 Nearby</button>
                 </div>
             </div>
             <div id="storeContent"><div class="loading-spinner"></div></div>`;
@@ -28,7 +27,7 @@ const StoreModule = {
 
     switchTab(tab) {
         this.currentTab = tab;
-        const tabs = ['catalog', 'downloaded', 'nearby'];
+        const tabs = ['catalog', 'downloaded'];
         tabs.forEach(t => {
             const btn = document.getElementById(`tab-${t}`);
             if (t === tab) {
@@ -45,8 +44,6 @@ const StoreModule = {
             this.checkExistingDownloads();
         } else if (tab === 'downloaded') {
             this.renderDownloaded();
-        } else if (tab === 'nearby') {
-            this.renderNearby();
         }
     },
 
@@ -66,7 +63,6 @@ const StoreModule = {
     render() {
         if (this.currentTab === 'catalog') this.renderCatalog();
         else if (this.currentTab === 'downloaded') this.renderDownloaded();
-        else if (this.currentTab === 'nearby') this.renderNearby();
     },
 
     renderCatalog() {
@@ -414,163 +410,5 @@ const StoreModule = {
             }
         };
         check();
-    },
-
-    // ============================================================
-    // NEARBY CYBERDECKS — LAN Content Sync
-    // ============================================================
-
-    peerLibrary: null,
-    peerIp: '',
-
-    renderNearby() {
-        const el = document.getElementById('storeContent');
-        el.innerHTML = `
-            <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 8px 0; font-size: 16px;">📡 Scan Nearby CyberDeck</h3>
-                <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
-                    Enter the IP address of another CyberDeck on your network to browse and pull their downloaded content.
-                </p>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="peer-ip-input" class="input" placeholder="e.g. 192.168.1.42"
-                        value="${this.peerIp}" style="flex: 1; max-width: 240px;"
-                        onkeydown="if(event.key==='Enter') StoreModule.scanPeer()">
-                    <button class="btn btn-primary" onclick="StoreModule.scanPeer()" id="scan-peer-btn">🔍 Scan</button>
-                </div>
-            </div>
-            <div id="peer-library-content">
-                ${this.peerLibrary ? '' : '<div class="empty-state"><h3>No peer scanned yet</h3><p>Enter a CyberDeck IP address and click Scan to browse their content library.</p></div>'}
-            </div>`;
-
-        if (this.peerLibrary) {
-            this.renderPeerLibrary();
-        }
-    },
-
-    async scanPeer() {
-        const ipInput = document.getElementById('peer-ip-input');
-        const btn = document.getElementById('scan-peer-btn');
-        const ip = ipInput.value.trim();
-        if (!ip) { alert('Please enter a peer IP address'); return; }
-
-        this.peerIp = ip;
-        btn.disabled = true;
-        btn.textContent = '⏳ Scanning...';
-        const contentEl = document.getElementById('peer-library-content');
-        contentEl.innerHTML = '<div class="loading-spinner"></div>';
-
-        try {
-            const res = await authFetch(`${API}/api/store/peer/library`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ peerIp: ip })
-            });
-            const data = await res.json();
-
-            if (!data.success) {
-                contentEl.innerHTML = `<div class="empty-state"><h3>❌ Connection Failed</h3><p>${data.error || 'Could not reach peer.'}</p><p style="font-size:12px;color:var(--text-dim);">Make sure the other CyberDeck is running and reachable on port 8443.</p></div>`;
-                btn.disabled = false;
-                btn.textContent = '🔍 Scan';
-                return;
-            }
-
-            this.peerLibrary = data;
-            this.renderPeerLibrary();
-        } catch (err) {
-            contentEl.innerHTML = `<div class="empty-state"><h3>❌ Error</h3><p>${err.message}</p></div>`;
-        }
-
-        btn.disabled = false;
-        btn.textContent = '🔍 Scan';
-    },
-
-    renderPeerLibrary() {
-        const el = document.getElementById('peer-library-content');
-        const data = this.peerLibrary;
-        if (!data || !data.items) { el.innerHTML = '<div class="empty-state"><h3>No data</h3></div>'; return; }
-
-        if (data.items.length === 0) {
-            el.innerHTML = `<div class="empty-state"><h3>📭 Empty Library</h3><p>${data.node || data.peer} has no downloaded content to share.</p></div>`;
-            return;
-        }
-
-        let html = `<div style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 14px;">🖥️ <strong style="color: var(--cyan);">${data.node || data.peer}</strong></span>
-            <span class="tag tag-cyan">${data.items.length} item${data.items.length !== 1 ? 's' : ''}</span>
-        </div>`;
-
-        html += '<div class="store-grid">';
-        for (const item of data.items) {
-            const sizeMB = item.sizeMB || (item.sizeBytes / (1024 * 1024)).toFixed(1);
-            const sizeDisplay = sizeMB > 1024 ? (sizeMB / 1024).toFixed(1) + ' GB' : sizeMB + ' MB';
-            const lic = item.license || {};
-            const dlId = `peer-${item.filename}`;
-
-            html += `
-                <div class="store-item card">
-                    <div class="store-item-header">
-                        <strong>${lic.name || item.filename}</strong>
-                        <span class="tag tag-cyan">${sizeDisplay}</span>
-                    </div>
-                    ${lic.license ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin: 8px 0;font-size:10px;">
-                        <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ License: ${lic.license}</span>
-                        ${lic.source ? `<span style="color:var(--text-dim);">Source: ${lic.source}</span>` : ''}
-                        ${lic.distributor ? `<span style="color:var(--text-dim);font-style:italic;">${lic.distributor}</span>` : ''}
-                    </div>` : ''}
-                    <div class="store-item-actions">
-                        <div class="store-progress" id="prog-${dlId}" style="display:none">
-                            <div class="store-progress-bar">
-                                <div class="store-progress-fill" id="fill-${dlId}"></div>
-                            </div>
-                            <span class="store-progress-text" id="text-${dlId}"></span>
-                        </div>
-                        <button class="btn btn-primary btn-sm" id="btn-${dlId}"
-                            onclick="StoreModule.pullFromPeer('${this.peerIp}', '${item.filename}', ${JSON.stringify(JSON.stringify(lic))})">
-                            📥 Pull
-                        </button>
-                    </div>
-                </div>`;
-        }
-        html += '</div>';
-
-        el.innerHTML = html;
-    },
-
-    async pullFromPeer(peerIp, filename, licenseDataStr) {
-        const dlId = `peer-${filename}`;
-        const btn = document.getElementById(`btn-${dlId}`);
-        const prog = document.getElementById(`prog-${dlId}`);
-
-        let licenseData = null;
-        try { licenseData = JSON.parse(licenseDataStr); } catch (e) { }
-
-        btn.disabled = true;
-        btn.textContent = '⏳ Pulling...';
-        prog.style.display = 'flex';
-
-        try {
-            const res = await authFetch(`${API}/api/store/peer/pull`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ peerIp, filename, licenseData })
-            });
-            const data = await res.json();
-
-            if (data.error) {
-                btn.disabled = false;
-                btn.textContent = '📥 Pull';
-                prog.style.display = 'none';
-                alert('Pull failed: ' + data.error);
-                return;
-            }
-
-            // Poll progress using existing progress poller
-            this.pollProgress(dlId);
-        } catch (err) {
-            btn.disabled = false;
-            btn.textContent = '📥 Pull';
-            prog.style.display = 'none';
-            alert('Pull failed: ' + err.message);
-        }
     }
 };

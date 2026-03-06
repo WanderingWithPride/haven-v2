@@ -578,6 +578,18 @@ pemsPromise.then(pems => {
             console.error('Failed to start UDP beacon:', e.message);
         }
 
+        // Expose discovered peers via API (used by Nearby CyberDecks module)
+        app.get('/api/peers', requireAuth, (req, res) => {
+            const now = Date.now();
+            const peers = [];
+            for (const [ip, lastSeen] of dtnPeers.entries()) {
+                if (now - lastSeen < 120000) {
+                    peers.push({ ip, lastSeen, agoMs: now - lastSeen });
+                }
+            }
+            res.json({ peers, self: getLanIP() });
+        });
+
         // DTN Epidemic Sync Loop
         setInterval(async () => {
             const now = Date.now();
