@@ -1,134 +1,122 @@
 # CyberDeck ⚡
 
-A **self-hosted survival/utility platform** that turns your Android phone (or any device running Node.js) into a personal, decentralized server. It provides media streaming, AI chat, offline Wikipedia, maps, encrypted storage, survival guides, and utility tools, all accessible through a single, stunning cyberpunk-themed web app without requiring an internet connection.
+A **self-hosted, offline-first communication and survival platform** that transforms any Android phone or Node.js device into a decentralized mesh node. CyberDeck enables real-time messaging, delay-tolerant packet routing, air-gapped data transfer, and peer-to-peer content sharing — all without requiring an internet connection.
 
-## 🌟 Core Features
+When the grid goes down, CyberDeck keeps you connected.
 
-### Knowledge & Information
+## 📡 Communication & Networking
+
+CyberDeck is built around a multi-layered communication stack that works in any connectivity scenario — from full Wi-Fi to complete radio silence.
+
+| Layer | Module | How It Works |
+|-------|--------|-------------|
+| **Real-time** | 💬 **LAN Chat** | WebSocket-based group chat across all devices on the same network. Zero config, instant join. |
+| **Store-and-Forward** | 📡 **DTN Engine** | Delay-Tolerant Networking with automatic **Epidemic Sync** via UDP beacons + mDNS. Devices exchange packets in the background whenever they come within Wi-Fi range — carry data across air-gaps like a physical courier. |
+| **Direct Transfer** | 📁 **WebRTC P2P** | Browser-to-browser file transfers over LAN. No server storage touched. |
+| **Air-Gapped** | 🕸️ **Mesh Network** | Transmit data with no network at all: **Acoustic MFSK** (audio frequencies), **Optical QR** (camera), or **BLE** (Bluetooth Low Energy). |
+| **Content Sharing** | 📦 **LAN Content Sync** | Browse and pull downloaded datasets, models, and knowledge packs directly from nearby CyberDeck nodes over the LAN. License metadata travels with the content. |
+
+### How Devices Communicate
+
+```text
+CyberDeck A                          CyberDeck B
+┌───────────────┐                   ┌───────────────┐
+│ DTN Spool     │◄── Wi-Fi/LAN ────►│ DTN Spool     │
+│ Epidemic Sync │   (auto-discover) │ Epidemic Sync │
+│               │                   │               │
+│ Content Store │◄── LAN Sync ─────►│ Content Store │
+│               │                   │               │
+│ Mesh Radio    │◄── Audio/QR/BLE ─►│ Mesh Radio    │
+└───────────────┘                   └───────────────┘
+```
+
+Nodes discover each other automatically via **mDNS** and **UDP Subnet Beacons** (bypasses Android hotspot restrictions). When two CyberDecks come within range, they perform TLS-encrypted background sync — no user action needed.
+
+## 🧠 Knowledge & AI (Offline)
+
 | Module | Description |
 |--------|-------------|
 | 🤖 **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses. |
 | 📚 **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
-| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Map Tile Downloader**. Select a region to sync vector tiles locally. |
-| 📖 **Ebooks** | EPUB reader (epub.js) and PDF viewer. Remembers reading progress. |
-| 🛡️ **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation) modeled after FM 21-76. |
+| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Tile Downloader**. |
+| 📖 **Ebooks** | EPUB reader and PDF viewer with saved reading progress. |
+| 🛡️ **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation). |
 
-### Media & Storage
+## 📦 Content Store & Distribution
+
+CyberDeck includes a built-in store for downloading open-source knowledge packs, AI models, and datasets:
+
+- **Catalog Manifest Architecture** — items defined in `catalog.json`, zero code changes to add content
+- **Resumable Downloads** — HTTP Range pause/resume for multi-GB files
+- **SHA256 Integrity Verification** — post-download hash check, auto-delete corrupted files
+- **License Sidecar Files** — `.license.json` accompanies every download with full attribution
+- **LAN Content Sync** — share downloaded content between CyberDecks without internet
+- **Attribution Compliance** — all content clearly labeled with license, source, and distributor
+
+## 🎵 Media & Storage
+
 | Module | Description |
 |--------|-------------|
-| 📁 **Files** | Full file manager. Browse, upload, download, and delete files. Features **WebRTC P2P Sharing** to transfer files directly to other users on the LAN without touching the server. |
-| 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art extraction, visualizer, and persistent queue. |
-| 📸 **Photos** | Photo gallery with lazy-loaded thumbnails, date grouping, EXIF data, and lightbox viewer. |
+| 📁 **Files** | Full file manager with upload/download/delete and **WebRTC P2P Sharing**. |
+| 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art, visualizer, and persistent queue. |
+| 📸 **Photos** | Photo gallery with lazy thumbnails, date grouping, EXIF data, and lightbox viewer. |
 | 🎬 **Videos** | Stream videos with range-request seeking and fullscreen support. |
-| 🔒 **Vault** | AES-256-GCM encrypted secure storage. Encrypt/decrypt files directly in the browser (Zero-knowledge server). |
+| 🔒 **Vault** | AES-256-GCM encrypted storage. Zero-knowledge — encryption happens in-browser. |
 
-### Utilities & Communication
+## 🛠️ Utilities
+
 | Module | Description |
 |--------|-------------|
-| 🛠️ **Utilities** | Built-in tools: Compass, Calculator, Unit Converter, Morse Code generator, Flashlight toggle, Coordinates. |
-| 📡 **LAN Chat** | Local area network chat room using WebSockets. Works entirely offline across devices on the same Wi-Fi. |
-| � **DTN Engine** | Delay-Tolerant Networking. Asynchronous store-and-forward packet routing between isolated CyberDeck nodes. Features automatic background Epidemic Sync via UDP beacons and mDNS. |
-| 🕸️ **Mesh Network** | physical layer air-gapped data transfer. Transmit data via Acoustic MFSK (audio), Optical QR Codes, or Web Bluetooth (BLE) sensors. |
-| �📦 **Store** | Built-in downloader to easily grab LLM models and knowledge packs. Features a robust **background downloader** with HTTP Range Pause/Resume support. |
-| 🔋 **Power** | System monitor showing CPU load, RAM usage, storage space, battery level, internal temperature, and active service status. |
-| 📱 **PWA Ready** | **Progressive Web App** architecture. Install CyberDeck to your device's home screen and cache the UI shell for immediate offline loading. |
+| 🧰 **Tools** | Compass, Calculator, Unit Converter, Morse Code generator, Flashlight, Coordinates. |
+| 🔋 **Power** | System monitor: CPU load, RAM, storage, battery, temperature, service status. |
+| 📱 **PWA** | Progressive Web App — install to home screen, cache UI shell for instant offline loading. |
 
-## 🚀 Quick Start (Installation)
+## 🚀 Quick Start
 
 CyberDeck works on any device running Node.js. Choose your platform:
 
-### Option 1: Android (via Termux) - *Ideal portable survival server*
+### Android (via Termux) — *Ideal portable mesh node*
 ```bash
-# 1. Install Termux and Termux:API from F-Droid (not Play Store)
-# 2. Update packages and install git
+# Install Termux + Termux:API from F-Droid (not Play Store)
 pkg update && pkg upgrade
 pkg install git Termux:API
-
-# 3. Clone and run setup
 git clone https://github.com/sarogamedev/CyberDeck.git
-cd CyberDeck/server
-bash setup.sh
+cd CyberDeck/server && bash setup.sh
 ```
 
-### Option 2: Linux (Ubuntu/Debian, Fedora, Arch)
-Install Git for Linux from https://git-scm.com/install/linux
+### Linux (Ubuntu/Debian, Fedora, Arch)
 ```bash
 git clone https://github.com/sarogamedev/CyberDeck.git
-cd CyberDeck/server
-sudo bash setup-linux.sh
+cd CyberDeck/server && sudo bash setup-linux.sh
 ```
 
-### Option 3: Windows (PowerShell)
-Install Git for Windows from https://git-scm.com/install/windows
+### Windows (PowerShell)
 ```powershell
 git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck\server
-# Run as Administrator for automatic dependency installation
+# Run as Administrator
 .\setup-windows.ps1
-# if installation fails, run the following command:
-powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 ### Starting the Server
-Once setup is complete on any OS, start the server with:
 ```bash
 node server.js
 ```
 
-The server will display your LAN IP (e.g., `192.168.1.38`). 
-Open that IP on any device connected to the same Wi-Fi network:
-- **Client App**: `http://<phone-ip>:8888`
-- **Admin Panel**: `http://<phone-ip>:8888/admin`
+The server displays your LAN IP. Open it on any device on the same network:
+- **Client App**: `http://<ip>:8888`
+- **Admin Panel**: `http://<ip>:8888/admin`
 
-*(Note: CyberDeck uses a default username `admin` and password `cyberdeck` for first-time access. Change this immediately in the Admin Panel).*
+*(Default credentials: `admin` / `cyberdeck` - change immediately in Admin Panel).*
 
 ## 🔌 Admin Panel (`/admin`)
 
-Access the admin dashboard to manage your CyberDeck node:
-- **Security**: Change the access username and password.
-- **Service Management**: Start/stop background services (Ollama, Kiwix).
-- **Library Scanning**: Force rescan of Music, Photos, Videos, and Ebooks directories.
-- **Configuration**: Change default directory paths (`/sdcard/Music`, etc.).
-- **Terminal Access**: Run direct shell commands on the host device from your browser.
-- **System Metrics**: Real-time server performance graphing.
-
-## 🎛️ How to Use Advanced Features
-
-### Setting up Offline Wikipedia (Kiwix)
-1. Go to the **Store** module in the CyberDeck app.
-2. Find "Wikipedia", "Medical Wikipedia", or "Survival Manuals".
-3. Click Download. The server will fetch the `.zim` file (can be several GBs).
-4. Go to **Admin Panel**, ensure Kiwix is enabled, and start the service.
-5. Open the **Wikipedia** module to search and read offline!
-
-### Setting up Offline AI (Ollama)
-1. Go to the **Store** module and download a model (e.g., `Llama 3.2 3B` or `Phi-3 Mini`).
-2. Open the **AI Chat** module. CyberDeck will automatically detect the installed models and allow you to chat completely offline.
-
-### Using the Secure Vault
-1. Open the **Vault** module.
-2. Enter a strong master password to unlock the vault. *Do not lose this password; the server does not store it and cannot recover encrypted files.*
-3. Upload files. They are encrypted *in your browser* before being sent to the server.
-4. To view/download, the file is fetched encrypted and decrypted locally in your browser memory.
-
-### LAN Chat & WebRTC P2P Sharing
-1. Open the **LAN Chat** module and enter a username. Anyone else on the network who connects will instantly join the room.
-2. To share a file directly with another user without using server storage, go to the **Files** app.
-3. Next to any local file, click the `📡` (P2P Share) icon.
-4. Select a user from the dropdown at the top to establish a direct WebRTC connection and transfer the file peer-to-peer.
-
-### Delay-Tolerant Networking (DTN)
-The DTN engine allows disparate CyberDeck nodes to exchange messages and data payloads asynchronously.
-1. Open the **DTN Engine** module. Write a packet directed to a specific user (or `ALL`).
-2. The packet is saved to your local `dtn_spool` directory.
-3. When your device comes within Wi-Fi range of another CyberDeck node, the servers automatically discover each other via **mDNS** and **UDP Subnet Beacons** (bypassing Android hotspot restrictions).
-4. The servers perform a TLS-encrypted **Epidemic Sync** in the background, exchanging all new packets. As you walk between isolated networks, your node will physically carry and propagate the data payloads across the air-gap! 
-
-### Mesh Data Radios (Acoustic / Optical)
-If two devices cannot physically connect to the same Wi-Fi router, you can bridge the air-gap natively:
-1. Open the **Mesh** module. 
-2. Use **Acoustic MFSK** to encode text payloads into audio frequencies. Place two phones near each other, click "Record (RX)" on one, and "Transmit (TX)" on the other to send text over soundwaves (no radio needed).
-3. Use the **Sneakernet QR Code** generator to visually exfiltrate small cryptographic keys or data blocks via the camera.
+- **Security**: Change access credentials
+- **Services**: Start/stop Ollama and Kiwix
+- **Library Scanning**: Force rescan media directories
+- **Configuration**: Customize directory paths
+- **Terminal**: Run shell commands from your browser
+- **Metrics**: Real-time performance graphing
 
 ## 🏗️ Architecture
 
@@ -137,19 +125,20 @@ Host Device (Termux/PC)                 Client (Any Browser)
 ┌──────────────────────┐               ┌──────────────────────┐
 │  Node.js Server      │               │  CyberDeck SPA       │
 │  ├─ Express API      │◄─── Wi-Fi ───►│  ├─ Vanilla JS/CSS   │
-│  ├─ SQLite DB        │   (Offline)   │  ├─ WebSockets       │
+│  ├─ DTN Engine       │   (Offline)   │  ├─ WebSockets       │
+│  ├─ Content Store    │               │  ├─ WebRTC P2P       │
 │  ├─ Ollama (LLMs)    │               │  ├─ Crypto API       │
 │  └─ Kiwix (Wiki)     │               │  └─ Service Workers  │
 └──────────────────────┘               └──────────────────────┘
 ```
 
-Everything is built using Vanilla JavaScript, HTML, and CSS without heavy frontend frameworks to ensure maximum performance on low-end devices and rapid loading over local networks.
+Built with Vanilla JavaScript, HTML, and CSS — no heavy frameworks. Optimized for maximum performance on low-end devices and rapid loading over local networks.
 
 ## 📋 Requirements
-- **Host**: Node.js 18+ (Android via Termux, Linux, Windows, macOS).
-- **Client**: Any modern web browser.
-- **Hardware**: For basic features, any smartphone from the last 10 years works. For **AI Chat**, a device with at least 6GB RAM (8GB+ recommended) is required.
-- **Network**: Wi-Fi router or Mobile Hotspot (no active internet connection required after initial setup/downloads).
+- **Host**: Node.js 18+ (Android via Termux, Linux, Windows, macOS)
+- **Client**: Any modern web browser
+- **Hardware**: Any smartphone from the last 10 years. For **AI Chat**, 6GB+ RAM (8GB recommended)
+- **Network**: Wi-Fi router or Mobile Hotspot (no internet required after initial setup)
 
 ## 🔧 Third Party Services
 
@@ -158,16 +147,14 @@ CyberDeck integrates with optional external software:
 - **[Kiwix](https://www.kiwix.org/)** – Offline Wikipedia server
 - **[Ollama](https://ollama.ai/)** – Local AI model runtime
 
-*These services are installed separately and are licensed under their respective open-source licenses.*
+*These services are installed separately and licensed under their respective open-source licenses.*
 
 ## 📄 License
 
 MIT License. Build, mod, and survive.
 
-For a comprehensive list of all open-source libraries used to build CyberDeck, see [**THIRD_PARTY_LICENSES.md**](THIRD_PARTY_LICENSES.md).
+For all open-source libraries used, see [**THIRD_PARTY_LICENSES.md**](THIRD_PARTY_LICENSES.md).
 
 ### Third-Party Models and Datasets
 
-CyberDeck allows downloading third-party AI models and datasets from the internet directly to your device via the Store module. 
-
-These resources are distributed under their respective licenses. CyberDeck does not claim ownership of any downloaded models or datasets. Users must comply with the original author's license terms.
+CyberDeck allows downloading third-party AI models and datasets via the Store module. These resources are distributed under their respective licenses. CyberDeck does not claim ownership of any downloaded content. Users must comply with the original license terms.

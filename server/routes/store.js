@@ -3,6 +3,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const https = require('https');
 const http = require('http');
 
@@ -697,6 +698,161 @@ module.exports = function (config) {
         }
 
         res.json(sizes);
+    });
+
+    // ============================================================
+    // LAN CONTENT SYNC — Share downloaded content between CyberDecks
+    // ============================================================
+
+    // Public endpoint: List downloadable content with license metadata
+    // Other CyberDeck nodes call this to see what we have available
+    router.get('/library', (req, res) => {
+        const items = [];
+        try {
+            const files = fs.readdirSync(DOWNLOADS_DIR);
+            for (const f of files) {
+                if (f.startsWith('.') || f === 'maps' || f.endsWith('.license.json')) continue;
+                const fullPath = path.join(DOWNLOADS_DIR, f);
+                const stat = fs.statSync(fullPath);
+                if (!stat.isFile()) continue;
+
+                const item = {
+                    filename: f,
+                    sizeBytes: stat.size,
+                    sizeMB: (stat.size / (1024 * 1024)).toFixed(1),
+                    modified: stat.mtime
+                };
+
+                // Attach license sidecar if it exists
+                const baseName = f.replace(/\.[^.]+$/, '');
+                const sidecarPath = path.join(DOWNLOADS_DIR, `${baseName}.license.json`);
+                try {
+                    if (fs.existsSync(sidecarPath)) {
+                        item.license = JSON.parse(fs.readFileSync(sidecarPath, 'utf-8'));
+                    }
+                } catch (e) { }
+
+                items.push(item);
+            }
+        } catch (e) { }
+
+        res.json({
+            node: os.hostname(),
+            items,
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    // Public endpoint: Serve a file to a requesting peer (supports Range for resumable)
+    router.get('/serve/:filename', (req, res) => {
+        const filename = req.params.filename;
+        // Sanitize — prevent directory traversal
+        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+            return res.status(400).json({ error: 'Invalid filename' });
+        }
+
+        const filePath = path.join(DOWNLOADS_DIR, filename);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        const stat = fs.statSync(filePath);
+        const range = req.headers.range;
+
+        if (range) {
+            // Resumable download support
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+            const chunkSize = (end - start) + 1;
+
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': `attachment; filename="${filename}"`
+            });
+            fs.createReadStream(filePath, { start, end }).pipe(res);
+        } else {
+            res.writeHead(200, {
+                'Content-Length': stat.size,
+                'Content-Type': 'application/octet-stream',
+                'Accept-Ranges': 'bytes',
+                'Content-Disposition': `attachment; filename="${filename}"`
+            });
+            fs.createReadStream(filePath).pipe(res);
+        }
+    });
+
+    // Proxy: Fetch a peer's content library (bypasses CORS/mixed-content)
+    router.post('/peer/library', async (req, res) => {
+        const { peerIp } = req.body;
+        if (!peerIp) return res.status(400).json({ error: 'Missing peerIp' });
+
+        try {
+            const fetch = require('node-fetch').default || require('node-fetch');
+            const httpsModule = require('https');
+            const agent = new httpsModule.Agent({ rejectUnauthorized: false });
+
+            const port = config.httpsPort || 8443;
+            const url = `https://${peerIp}:${port}/api/store/library`;
+            console.log(`[LAN Sync] Fetching library from peer: ${url}`);
+
+            const response = await fetch(url, { timeout: 5000, agent });
+            const data = await response.json();
+            res.json({ success: true, peer: peerIp, ...data });
+        } catch (e) {
+            res.json({ success: false, error: e.message, peer: peerIp, items: [] });
+        }
+    });
+
+    // Proxy: Pull a file from a peer CyberDeck into our downloads
+    router.post('/peer/pull', async (req, res) => {
+        const { peerIp, filename, licenseData } = req.body;
+        if (!peerIp || !filename) return res.status(400).json({ error: 'Missing peerIp or filename' });
+
+        // Sanitize
+        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+            return res.status(400).json({ error: 'Invalid filename' });
+        }
+
+        const dest = path.join(DOWNLOADS_DIR, filename);
+        const dlId = `peer-${filename}`;
+
+        // Check if already downloading
+        if (activeDownloads.has(dlId) && ['downloading', 'discovering'].includes(activeDownloads.get(dlId)?.status)) {
+            return res.json({ success: true, downloadId: dlId, message: 'Already downloading' });
+        }
+
+        activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Pulling from nearby CyberDeck (${peerIp})...`, type: 'zim', dest });
+
+        try {
+            const port = config.httpsPort || 8443;
+            const url = `https://${peerIp}:${port}/api/store/serve/${encodeURIComponent(filename)}`;
+            console.log(`[LAN Sync] Pulling file from peer: ${url}`);
+
+            // Download using existing infrastructure
+            downloadFile(url, dest, dlId, activeDownloads, activeProcesses);
+
+            // Write license sidecar if provided
+            if (licenseData) {
+                try {
+                    const baseName = filename.replace(/\.[^.]+$/, '');
+                    const sidecarPath = path.join(DOWNLOADS_DIR, `${baseName}.license.json`);
+                    fs.writeFileSync(sidecarPath, JSON.stringify({
+                        ...licenseData,
+                        pulledFrom: peerIp,
+                        pulledAt: new Date().toISOString()
+                    }, null, 2));
+                } catch (e) { console.error('[LAN Sync] Failed to write license sidecar:', e.message); }
+            }
+
+            res.json({ success: true, downloadId: dlId, message: `Pulling ${filename} from ${peerIp}` });
+        } catch (err) {
+            activeDownloads.set(dlId, { status: 'failed', progress: 0, output: err.message });
+            res.json({ success: false, downloadId: dlId, error: err.message });
+        }
     });
 
     return router;
