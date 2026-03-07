@@ -1,5 +1,7 @@
 # CyberDeck ⚡
 
+CyberDeck – A portable offline knowledge, AI, and communication platform. Run local LLMs, Wikipedia, maps, and mesh networking without internet.
+
 A **self-hosted, offline-first communication and survival platform** that transforms any Android phone or Node.js device into a decentralized mesh node. CyberDeck enables real-time messaging, delay-tolerant packet routing, air-gapped data transfer, and peer-to-peer content sharing, all without requiring an internet connection.
 
 When the grid goes down, CyberDeck keeps you connected.
