@@ -1,6 +1,6 @@
 # CyberDeck ⚡
 
-CyberDeck – A portable offline knowledge, AI, and communication platform. Run local LLMs, Wikipedia, maps, and mesh networking without internet.
+CyberDeck - A portable offline knowledge, AI, and communication platform. Run local LLMs, Wikipedia, maps, and mesh networking without internet.
 
 A **self-hosted, offline-first communication and survival platform** that transforms any Android phone or Node.js device into a decentralized mesh node. CyberDeck enables real-time messaging, delay-tolerant packet routing, air-gapped data transfer, and peer-to-peer content sharing, all without requiring an internet connection.
 
@@ -49,13 +49,13 @@ Nodes discover each other automatically via **mDNS** and **UDP Subnet Beacons** 
 
 CyberDeck includes a built-in store for downloading open-source knowledge packs, AI models, and datasets:
 
-- **Catalog Manifest Architecture** — items defined in `catalog.json`, zero code changes to add content
-- **Resumable Downloads** — HTTP Range pause/resume for multi-GB files
-- **LAN Content Sync (P2P)** — Share ZIM files and **Ollama AI Models** between devices without internet. Integrated aggregate progress and speed tracking.
-- **Cross-Platform Sync** — Seamlessly pull content between Android (Termux), Windows, and Linux.
-- **SHA256 Integrity Verification** — post-download hash check, auto-delete corrupted files
-- **License Sidecar Files** — `.license.json` accompanies every download with full attribution
-- **Attribution Compliance** — all content clearly labeled with license, source, and distributor
+- **Catalog Manifest Architecture** - items defined in `catalog.json`, zero code changes to add content
+- **Resumable Downloads** - HTTP Range pause/resume for multi-GB files
+- **LAN Content Sync (P2P)** - Share ZIM files and **Ollama AI Models** between devices without internet. Integrated aggregate progress and speed tracking.
+- **Cross-Platform Sync** - Seamlessly pull content between Android (Termux), Windows, and Linux.
+- **SHA256 Integrity Verification** - post-download hash check, auto-delete corrupted files
+- **License Sidecar Files** - `.license.json` accompanies every download with full attribution
+- **Attribution Compliance** - all content clearly labeled with license, source, and distributor
 
 
 ## 🎵 Media & Storage
@@ -86,7 +86,7 @@ CyberDeck works on any device running Node.js. Choose your platform:
 pkg update && pkg upgrade
 pkg install git Termux:API
 git clone https://github.com/sarogamedev/CyberDeck.git
-cd CyberDeck/server && bash setup.sh
+cd CyberDeck/server && bash setup-android.sh
 ```
 
 ### Linux (Ubuntu/Debian, Fedora, Arch)
@@ -101,6 +101,8 @@ git clone https://github.com/sarogamedev/CyberDeck.git
 cd CyberDeck\server
 # Run as Administrator
 .\setup-windows.ps1
+# if installation fails, run the following command:
+powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 ### Starting the Server
