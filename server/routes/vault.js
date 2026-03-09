@@ -14,14 +14,27 @@ module.exports = function (config) {
     // Ensure vault dir exists
     if (!fs.existsSync(VAULT_DIR)) fs.mkdirSync(VAULT_DIR, { recursive: true });
 
+    const activeSessions = new Map(); // token -> { password, expiresAt }
+
+    function cleanSessions() {
+        const now = Date.now();
+        for (const [token, data] of activeSessions.entries()) {
+            if (data.expiresAt < now) activeSessions.delete(token);
+        }
+    }
+
     function loadMeta() {
         if (!fs.existsSync(VAULT_META)) return { files: [], vaultKeyHash: null };
         return JSON.parse(fs.readFileSync(VAULT_META, 'utf-8'));
     }
     function saveMeta(meta) { fs.writeFileSync(VAULT_META, JSON.stringify(meta, null, 2)); }
 
-    function deriveKey(password) {
-        return crypto.pbkdf2Sync(password, 'cyberdeck-vault-salt', 100000, 32, 'sha512');
+    function deriveKey(password, salt) {
+        return crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha512');
+    }
+
+    function hashVaultPassword(password, salt) {
+        return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
     }
 
     // Initialize vault with a password (first time)
@@ -32,10 +45,17 @@ module.exports = function (config) {
         const meta = loadMeta();
         if (meta.vaultKeyHash) return res.status(400).json({ error: 'Vault already initialized' });
 
-        meta.vaultKeyHash = crypto.createHash('sha256').update(password).digest('hex');
+        const vaultSalt = crypto.randomBytes(32).toString('hex');
+        meta.vaultSalt = vaultSalt;
+        meta.vaultKeyHash = hashVaultPassword(password, vaultSalt);
         meta.files = [];
         saveMeta(meta);
-        res.json({ success: true });
+
+        cleanSessions();
+        const token = crypto.randomBytes(32).toString('hex');
+        activeSessions.set(token, { password, expiresAt: Date.now() + 60 * 60 * 1000 });
+
+        res.json({ success: true, token });
     });
 
     // Check vault status
@@ -54,28 +74,39 @@ module.exports = function (config) {
         const meta = loadMeta();
         if (!meta.vaultKeyHash) return res.status(400).json({ error: 'Vault not initialized' });
 
-        const hash = crypto.createHash('sha256').update(password).digest('hex');
+        const hash = hashVaultPassword(password, meta.vaultSalt);
         if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong vault password' });
 
-        res.json({ success: true, files: meta.files.map(f => ({ id: f.id, name: f.name, size: f.originalSize, date: f.date })) });
+        cleanSessions();
+        const token = crypto.randomBytes(32).toString('hex');
+        activeSessions.set(token, { password, expiresAt: Date.now() + 60 * 60 * 1000 });
+
+        res.json({ success: true, token, files: meta.files.map(f => ({ id: f.id, name: f.name, size: f.originalSize, date: f.date })) });
     });
 
     // Store a file into vault (using multer for reliable upload)
     const upload = multer ? multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } }) : null;
 
     const storeHandler = (req, res) => {
-        const vaultPass = req.headers['x-vault-password'];
+        const token = req.headers['x-vault-token'];
         const fileName = req.file ? req.file.originalname : (req.headers['x-file-name'] || 'unnamed');
-        if (!vaultPass) return res.status(400).json({ error: 'Vault password required' });
+        if (!token) return res.status(400).json({ error: 'Vault session token required' });
+
+        cleanSessions();
+        const session = activeSessions.get(token);
+        if (!session) return res.status(401).json({ error: 'Vault session expired' });
+
+        session.expiresAt = Date.now() + 60 * 60 * 1000;
+        const vaultPass = session.password;
 
         const meta = loadMeta();
-        const hash = crypto.createHash('sha256').update(vaultPass).digest('hex');
-        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong vault password' });
+        const hash = hashVaultPassword(vaultPass, meta.vaultSalt);
+        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Vault config changed' });
 
         const fileData = req.file ? req.file.buffer : req.body;
         if (!fileData || fileData.length === 0) return res.status(400).json({ error: 'No file data received' });
 
-        const key = deriveKey(vaultPass);
+        const key = deriveKey(vaultPass, meta.vaultSalt);
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
@@ -109,10 +140,17 @@ module.exports = function (config) {
 
     // Retrieve a file from vault
     router.post('/retrieve/:id', (req, res) => {
-        const { password } = req.body;
+        const { token } = req.body;
+        cleanSessions();
+        const session = activeSessions.get(token);
+        if (!session) return res.status(401).json({ error: 'Vault session expired' });
+
+        session.expiresAt = Date.now() + 60 * 60 * 1000;
+        const password = session.password;
+
         const meta = loadMeta();
-        const hash = crypto.createHash('sha256').update(password).digest('hex');
-        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong vault password' });
+        const hash = hashVaultPassword(password, meta.vaultSalt);
+        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Vault config changed' });
 
         const fileMeta = meta.files.find(f => f.id === req.params.id);
         if (!fileMeta) return res.status(404).json({ error: 'File not found' });
@@ -125,7 +163,7 @@ module.exports = function (config) {
         const authTag = data.subarray(16, 32);
         const encrypted = data.subarray(32);
 
-        const key = deriveKey(password);
+        const key = deriveKey(password, meta.vaultSalt);
         const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
         decipher.setAuthTag(authTag);
 
@@ -140,10 +178,17 @@ module.exports = function (config) {
 
     // Delete a file from vault
     router.delete('/:id', (req, res) => {
-        const vaultPass = req.headers['x-vault-password'];
+        const token = req.headers['x-vault-token'];
+        cleanSessions();
+        const session = activeSessions.get(token);
+        if (!session) return res.status(401).json({ error: 'Vault session expired' });
+
+        session.expiresAt = Date.now() + 60 * 60 * 1000;
+        const vaultPass = session.password;
+
         const meta = loadMeta();
-        const hash = crypto.createHash('sha256').update(vaultPass).digest('hex');
-        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong vault password' });
+        const hash = hashVaultPassword(vaultPass, meta.vaultSalt);
+        if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Vault config changed' });
 
         const idx = meta.files.findIndex(f => f.id === req.params.id);
         if (idx === -1) return res.status(404).json({ error: 'File not found' });
@@ -162,12 +207,13 @@ module.exports = function (config) {
         if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'New password must be 4+ characters' });
 
         const meta = loadMeta();
-        const hash = crypto.createHash('sha256').update(oldPassword).digest('hex');
+        const hash = hashVaultPassword(oldPassword, meta.vaultSalt);
         if (hash !== meta.vaultKeyHash) return res.status(401).json({ error: 'Wrong current password' });
 
         // Re-encrypt all files
-        const oldKey = deriveKey(oldPassword);
-        const newKey = deriveKey(newPassword);
+        const oldKey = deriveKey(oldPassword, meta.vaultSalt);
+        const newSalt = crypto.randomBytes(32).toString('hex');
+        const newKey = deriveKey(newPassword, newSalt);
 
         for (const fileMeta of meta.files) {
             const encPath = path.join(VAULT_DIR, fileMeta.id + '.enc');
@@ -192,7 +238,8 @@ module.exports = function (config) {
             fs.writeFileSync(encPath, Buffer.concat([newIv, newAuthTag, reEncrypted]));
         }
 
-        meta.vaultKeyHash = crypto.createHash('sha256').update(newPassword).digest('hex');
+        meta.vaultSalt = newSalt;
+        meta.vaultKeyHash = hashVaultPassword(newPassword, newSalt);
         saveMeta(meta);
         res.json({ success: true });
     });

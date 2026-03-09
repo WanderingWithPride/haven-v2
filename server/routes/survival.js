@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { encodeFileId, decodeFileId } = require('../utils/scanner');
 
 module.exports = function (config) {
     const router = express.Router();
@@ -25,7 +26,7 @@ module.exports = function (config) {
                         const content = fs.readFileSync(path.join(catDir, f), 'utf-8');
                         const titleMatch = content.match(/^#\s+(.+)/m);
                         return {
-                            id: Buffer.from(`${cat}/${f}`).toString('base64url'),
+                            id: encodeFileId(path.join(catDir, f)),
                             slug: f.replace('.md', ''),
                             title: titleMatch ? titleMatch[1] : f.replace('.md', '').replace(/-/g, ' '),
                             category: cat,
@@ -44,28 +45,23 @@ module.exports = function (config) {
             const total = categories.reduce((sum, c) => sum + c.articles.length, 0);
             res.json({ categories, total });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Get single article
     router.get('/article/:id', (req, res) => {
         try {
-            const filePath = Buffer.from(req.params.id, 'base64url').toString();
-            const fullPath = path.join(contentDir, filePath);
+            const fullPath = decodeFileId(req.params.id, contentDir);
 
-            // Security check
-            if (!fullPath.startsWith(contentDir)) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
             if (!fs.existsSync(fullPath)) {
                 return res.status(404).json({ error: 'Article not found' });
             }
 
             const content = fs.readFileSync(fullPath, 'utf-8');
-            res.json({ content, path: filePath });
+            res.json({ content, path: path.relative(contentDir, fullPath) });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -91,7 +87,7 @@ module.exports = function (config) {
                         const snippetIdx = content.toLowerCase().indexOf(query);
                         const snippet = content.substring(Math.max(0, snippetIdx - 40), snippetIdx + 80).replace(/[#*_\n]/g, ' ').trim();
                         results.push({
-                            id: Buffer.from(`${cat}/${f}`).toString('base64url'),
+                            id: encodeFileId(path.join(catDir, f)),
                             title: titleMatch ? titleMatch[1] : f.replace('.md', ''),
                             category: cat,
                             snippet: '...' + snippet + '...'
@@ -101,7 +97,7 @@ module.exports = function (config) {
             }
             res.json({ results });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

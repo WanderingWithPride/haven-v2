@@ -1,5 +1,15 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+
+// Ephemeral secret for signing file paths. Resets on restart.
+const FILE_ID_SECRET = crypto.randomBytes(32);
+
+function encodeFileId(filePath) {
+    const payload = Buffer.from(filePath).toString('base64url');
+    const signature = crypto.createHmac('sha256', FILE_ID_SECRET).update(filePath).digest('base64url');
+    return `${payload}.${signature}`;
+}
 
 /**
  * Recursively scan a directory for files matching given extensions
@@ -19,10 +29,9 @@ function scanDirectory(dirPath, extensions = [], recursive = true) {
                 if (extensions.length === 0 || extensions.includes(ext)) {
                     const stat = fs.statSync(fullPath);
                     results.push({
-                        id: Buffer.from(fullPath).toString('base64url'),
+                        id: encodeFileId(fullPath),
                         name: entry.name,
-                        path: fullPath,
-                        relativePath: fullPath,
+                        relativePath: path.relative(dirPath, fullPath),
                         ext: ext,
                         size: stat.size,
                         modified: stat.mtime,
@@ -38,10 +47,37 @@ function scanDirectory(dirPath, extensions = [], recursive = true) {
 }
 
 /**
- * Decode a base64url file ID back to a file path
+ * Decode a base64url file ID back to a file path and ensure it stays within root directory
  */
-function decodeFileId(id) {
-    return Buffer.from(id, 'base64url').toString('utf-8');
+function decodeFileId(id, rootDir) {
+    if (!rootDir) throw new Error('Security Error: rootDir required for decodeFileId');
+    if (!id || typeof id !== 'string') throw new Error('Invalid ID');
+
+    const parts = id.split('.');
+    if (parts.length !== 2) throw new Error('Invalid ID format');
+
+    const payload = parts[0];
+    const signature = parts[1];
+
+    const decoded = Buffer.from(payload, 'base64url').toString('utf-8');
+    const expectedSig = crypto.createHmac('sha256', FILE_ID_SECRET).update(decoded).digest('base64url');
+
+    if (signature !== expectedSig) {
+        throw new Error('Access denied: File ID signature mismatch');
+    }
+
+    const resolvedPath = path.resolve(decoded);
+    const normalizedRoot = path.normalize(path.resolve(rootDir));
+
+    // Case-insensitive comparison on Windows
+    const compare = process.platform === 'win32'
+        ? (a, b) => a.toLowerCase().startsWith(b.toLowerCase())
+        : (a, b) => a.startsWith(b);
+
+    if (!compare(resolvedPath, normalizedRoot)) {
+        throw new Error('Access denied: Path outside root directory');
+    }
+    return resolvedPath;
 }
 
 /**
@@ -80,4 +116,4 @@ function getMimeType(ext) {
     return mimeTypes[ext] || 'application/octet-stream';
 }
 
-module.exports = { scanDirectory, decodeFileId, formatBytes, getMimeType };
+module.exports = { scanDirectory, encodeFileId, decodeFileId, formatBytes, getMimeType };

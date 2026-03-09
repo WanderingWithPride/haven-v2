@@ -39,14 +39,14 @@ module.exports = function (config) {
                     .map(([date, items]) => ({ date, count: items.length, photos: items }))
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Get thumbnail
     router.get('/thumb/:id', async (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.photos);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
             const thumbPath = await generateThumbnail(
@@ -62,19 +62,19 @@ module.exports = function (config) {
                 res.sendFile(filePath);
             }
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Get full image
     router.get('/full/:id', (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.photos);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
             res.set('Cache-Control', 'public, max-age=3600');
             res.sendFile(filePath);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

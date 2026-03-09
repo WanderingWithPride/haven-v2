@@ -71,7 +71,7 @@ const NearbyModule = {
                 this.activePulls.forEach(id => this.pollPullProgress(id));
             }
         } catch (err) {
-            el.innerHTML = `<div class="empty-state"><h3>Discovery Error</h3><p>${err.message}</p></div>`;
+            el.innerHTML = `<div class="empty-state"><h3>Discovery Error</h3><p>${escapeHtml(err.message)}</p></div>`;
         }
     },
 
@@ -80,7 +80,7 @@ const NearbyModule = {
 
         let html = `
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-                <span style="font-size: 12px; color: var(--text-dim);">Your IP: <strong style="color: var(--cyan);">${this.selfIp}</strong></span>
+                <span style="font-size: 12px; color: var(--text-dim);">Your IP: <strong style="color: var(--cyan);">${escapeHtml(this.selfIp)}</strong></span>
                 <button class="btn btn-sm" style="font-size:12px;" onclick="NearbyModule.discoverPeers()">🔄 Refresh</button>
             </div>`;
 
@@ -99,13 +99,13 @@ const NearbyModule = {
 
                 html += `
                     <div class="card" style="cursor: pointer; padding: 16px; border: 2px solid ${isSelected ? 'var(--cyan)' : 'var(--border)'}; transition: all 0.2s;"
-                        onclick="NearbyModule.selectPeer('${peer.ip}')"
+                        onclick="NearbyModule.selectPeer('${escapeHtml(peer.ip)}')"
                         onmouseenter="this.style.borderColor='var(--cyan)'"
                         onmouseleave="this.style.borderColor='${isSelected ? 'var(--cyan)' : 'var(--border)'}'"
                     >
                         <div style="font-size: 24px; text-align: center; margin-bottom: 8px;">🖥️</div>
                         <div style="text-align: center;">
-                            <strong style="color: var(--cyan); font-size: 14px;">${peer.ip}</strong>
+                            <strong style="color: var(--cyan); font-size: 14px;">${escapeHtml(peer.ip)}</strong>
                             <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Seen ${agoText}</div>
                             ${isSelected ? '<div style="font-size:11px;color:var(--green);margin-top:4px;">● Connected</div>' : ''}
                         </div>
@@ -152,9 +152,9 @@ const NearbyModule = {
             const data = await res.json();
 
             if (!data.success) {
-                libEl.innerHTML = `<div class="empty-state"><h3>❌ Connection Failed</h3><p>${data.error || 'Could not reach peer.'}</p>
+                libEl.innerHTML = `<div class="empty-state"><h3>❌ Connection Failed</h3><p>${escapeHtml(data.error || 'Could not reach peer.')}</p>
                     <p style="font-size:12px;color:var(--text-dim);">Make sure the other CyberDeck is running on port 8443.</p>
-                    <button class="btn btn-sm" onclick="NearbyModule.connectToPeer('${ip}')">🔄 Retry</button></div>`;
+                    <button class="btn btn-sm" onclick="NearbyModule.connectToPeer('${escapeHtml(ip)}')">🔄 Retry</button></div>`;
                 return;
             }
 
@@ -162,8 +162,8 @@ const NearbyModule = {
             this.peerItems = data.items || [];
             this.renderLibrary();
         } catch (err) {
-            libEl.innerHTML = `<div class="empty-state"><h3>❌ Error</h3><p>${err.message}</p>
-                <button class="btn btn-sm" onclick="NearbyModule.connectToPeer('${ip}')">🔄 Retry</button></div>`;
+            libEl.innerHTML = `<div class="empty-state"><h3>❌ Error</h3><p>${escapeHtml(err.message)}</p>
+                <button class="btn btn-sm" onclick="NearbyModule.connectToPeer('${escapeHtml(ip)}')">🔄 Retry</button></div>`;
         }
     },
 
@@ -171,14 +171,14 @@ const NearbyModule = {
         const el = document.getElementById('nearby-library');
         const items = this.peerItems;
         if (!items || items.length === 0) {
-            el.innerHTML = `<div class="empty-state"><h3>📭 Empty Library</h3><p>${this.selectedPeer} has no content to share.</p></div>`;
+            el.innerHTML = `<div class="empty-state"><h3>📭 Empty Library</h3><p>${escapeHtml(this.selectedPeer)} has no content to share.</p></div>`;
             return;
         }
 
         let html = `<div style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 14px;">🖥️ <strong style="color: var(--cyan);">${this.selectedPeer}</strong></span>
+            <span style="font-size: 14px;">🖥️ <strong style="color: var(--cyan);">${escapeHtml(this.selectedPeer)}</strong></span>
             <span class="tag tag-cyan">${items.length} item${items.length !== 1 ? 's' : ''}</span>
-            <button class="btn btn-sm" style="font-size:12px;" onclick="NearbyModule.selectPeer('${this.selectedPeer}')">🔄 Refresh</button>
+            <button class="btn btn-sm" style="font-size:12px;" onclick="NearbyModule.selectPeer('${escapeHtml(this.selectedPeer)}')">🔄 Refresh</button>
         </div>`;
 
         html += '<div class="store-grid">';
@@ -193,13 +193,13 @@ const NearbyModule = {
             html += `
                 <div class="store-item card">
                     <div class="store-item-header">
-                        <strong>${typeIcon} ${lic.name || item.filename}</strong>
+                        <strong>${typeIcon} ${escapeHtml(lic.name || item.filename)}</strong>
                         <span class="tag tag-cyan">${sizeDisplay}</span>
                     </div>
                     <div style="font-size:10px;color:var(--text-dim);margin:4px 0;">${typeLabel}</div>
                     ${lic.license ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin: 4px 0;font-size:10px;">
-                        <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ ${lic.license}</span>
-                        ${lic.source ? `<span style="color:var(--text-dim);">${lic.source}</span>` : ''}
+                        <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ ${escapeHtml(lic.license)}</span>
+                        ${lic.source ? `<span style="color:var(--text-dim);">${escapeHtml(lic.source)}</span>` : ''}
                     </div>` : ''}
                     <div class="store-item-actions">
                         <div class="store-progress" id="prog-${dlId}" style="display:none; flex-direction: column; gap: 8px;">

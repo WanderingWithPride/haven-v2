@@ -6,6 +6,13 @@ const API = window.location.origin;
 let currentModule = 'music';
 let sidebarCollapsed = false;
 
+window.escapeHtml = function (text) {
+    if (!text && text !== 0) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+};
+
 // ═══════════════════════════════════════════
 // Authentication
 // ═══════════════════════════════════════════

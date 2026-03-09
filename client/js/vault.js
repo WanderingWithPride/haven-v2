@@ -4,7 +4,7 @@
 
 const VaultModule = {
     unlocked: false,
-    vaultPassword: null,
+    vaultToken: null,
     files: [],
 
     async init() {
@@ -67,12 +67,15 @@ const VaultModule = {
         if (pass.length < 4) { alert('Password must be 4+ characters'); return; }
 
         try {
-            await authFetch(`${API}/api/vault/init`, {
+            const res = await authFetch(`${API}/api/vault/init`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password: pass })
             });
-            this.vaultPassword = pass;
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            this.vaultToken = data.token;
             this.unlocked = true;
             this.files = [];
             this.showVault();
@@ -95,7 +98,7 @@ const VaultModule = {
                 errEl.style.display = 'block';
                 return;
             }
-            this.vaultPassword = pass;
+            this.vaultToken = data.token;
             this.unlocked = true;
             this.files = data.files || [];
             this.showVault();
@@ -138,12 +141,12 @@ const VaultModule = {
             html += `
                 <div class="file-row">
                     <span class="file-icon">🔒</span>
-                    <span class="file-name">${f.name}</span>
+                    <span class="file-name">${escapeHtml(f.name)}</span>
                     <span class="file-size">${formatBytes(f.size)}</span>
                     <span class="file-date">${formatDate(f.date)}</span>
                     <div class="file-actions">
-                        <button class="file-action-btn" onclick="VaultModule.retrieve('${f.id}', '${f.name.replace(/'/g, "\\'")}')">⬇️</button>
-                        <button class="file-action-btn" onclick="VaultModule.deleteFile('${f.id}', '${f.name.replace(/'/g, "\\'")}')">🗑</button>
+                        <button class="file-action-btn" onclick="VaultModule.retrieve('${f.id}', '${escapeHtml(f.name).replace(/'/g, "\\'")}')">⬇️</button>
+                        <button class="file-action-btn" onclick="VaultModule.deleteFile('${f.id}', '${escapeHtml(f.name).replace(/'/g, "\\'")}')">🗑</button>
                     </div>
                 </div>`;
         });
@@ -160,7 +163,7 @@ const VaultModule = {
                 await authFetch(`${API}/api/vault/store`, {
                     method: 'POST',
                     headers: {
-                        'x-vault-password': this.vaultPassword
+                        'x-vault-token': this.vaultToken
                     },
                     body: formData
                     // Do NOT set Content-Type — browser sets it with boundary for FormData
@@ -178,8 +181,12 @@ const VaultModule = {
             const res = await authFetch(`${API}/api/vault/retrieve/${id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: this.vaultPassword })
+                body: JSON.stringify({ token: this.vaultToken })
             });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to download');
+            }
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -191,10 +198,11 @@ const VaultModule = {
     async deleteFile(id, name) {
         if (!confirm(`Delete "${name}" from vault?`)) return;
         try {
-            await authFetch(`${API}/api/vault/${id}`, {
+            const res = await authFetch(`${API}/api/vault/${id}`, {
                 method: 'DELETE',
-                headers: { 'x-vault-password': this.vaultPassword }
+                headers: { 'x-vault-token': this.vaultToken }
             });
+            if (!res.ok) throw new Error((await res.json()).error);
             await this.refreshFiles();
         } catch (err) { alert('Delete failed: ' + err.message); }
     },
@@ -212,7 +220,7 @@ const VaultModule = {
 
     lock() {
         this.unlocked = false;
-        this.vaultPassword = null;
+        this.vaultToken = null;
         this.files = [];
         this.init();
     }

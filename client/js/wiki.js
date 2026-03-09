@@ -55,7 +55,7 @@ const WikiModule = {
                     <div class="empty-state">
                         <div class="empty-icon">🔍</div>
                         <h3>No results</h3>
-                        <p>No articles found for "${query}"</p>
+                        <p>No articles found for "${escapeHtml(query)}"</p>
                     </div>`;
                 return;
             }
@@ -64,7 +64,7 @@ const WikiModule = {
             data.results.forEach(result => {
                 html += `
                     <li class="wiki-result-item" onclick="WikiModule.loadArticle('${result.path.replace(/'/g, "\\'")}')">
-                        <strong>${result.title}</strong>
+                        <strong>${escapeHtml(result.title)}</strong>
                     </li>`;
             });
             html += '</ul>';
@@ -74,7 +74,7 @@ const WikiModule = {
                 <div class="empty-state">
                     <div class="empty-icon">⚠️</div>
                     <h3>Search failed</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
     },
@@ -154,7 +154,7 @@ const WikiModule = {
                 <div class="empty-state">
                     <div class="empty-icon">⚠️</div>
                     <h3>Failed to load article</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
     }

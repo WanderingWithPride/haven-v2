@@ -42,13 +42,21 @@ module.exports = function (config) {
     router.get('/article/*', async (req, res) => {
         try {
             if (!fetch) return res.status(500).json({ error: 'node-fetch not installed' });
-            const articlePath = req.params[0];
+            let articlePath = req.params[0] || '';
+            // SSRF Protection: Prevent path traversal and absolute URLs
+            if (articlePath.includes('..') || articlePath.includes('://')) {
+                return res.status(400).json({ error: 'Invalid article path' });
+            }
 
             const response = await fetch(`${kiwixBase}/${articlePath}`);
             const contentType = response.headers.get('content-type');
 
             if (contentType && contentType.includes('text/html')) {
                 let html = await response.text();
+
+                // XSS Protection: Strip scripts and inline event handlers
+                html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+                html = html.replace(/\s+on[a-z]+=(['"])(?:(?!\1).)*\1/gi, '');
 
                 res.json({
                     title: articlePath,
@@ -69,7 +77,11 @@ module.exports = function (config) {
     router.get('/asset/*', async (req, res) => {
         try {
             if (!fetch) return res.status(500).json({ error: 'node-fetch not installed' });
-            const assetPath = req.params[0];
+            let assetPath = req.params[0] || '';
+            // SSRF Protection: Prevent path traversal and absolute URLs
+            if (assetPath.includes('..') || assetPath.includes('://')) {
+                return res.status(400).json({ error: 'Invalid asset path' });
+            }
 
             const response = await fetch(`${kiwixBase}/${assetPath}`);
             const contentType = response.headers.get('content-type');
@@ -77,7 +89,7 @@ module.exports = function (config) {
             res.set('Cache-Control', 'public, max-age=86400');
             response.body.pipe(res);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

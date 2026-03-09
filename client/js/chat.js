@@ -46,7 +46,8 @@ const ChatModule = {
                 document.getElementById('chatStatus').textContent = 'Connected to LAN';
                 this.ws.send(JSON.stringify({
                     type: 'join',
-                    username: Auth.user?.username || 'Anonymous'
+                    username: Auth.user?.username || 'Anonymous',
+                    token: Auth.token
                 }));
 
                 // DTN Over-The-Air WebSocket Bridge
@@ -155,7 +156,7 @@ const ChatModule = {
         div.innerHTML = `
             <div class="msg-avatar">${isMe ? '👤' : '🤝'}</div>
             <div>
-                <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">${msg.username} · ${time}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">${this.escapeHtml(msg.username)} · ${time}</div>
                 <div class="msg-bubble">${this.escapeHtml(msg.text)}</div>
             </div>
         `;

@@ -6,6 +6,42 @@ const USERS_FILE = path.join(__dirname, '..', 'users.json');
 const SESSIONS = new Map(); // In-memory session store
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+// ── Login Rate Limiting ──
+const LOGIN_ATTEMPTS = new Map(); // IP -> { count, firstAttempt }
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(ip) {
+    const now = Date.now();
+    const record = LOGIN_ATTEMPTS.get(ip);
+    if (!record || (now - record.firstAttempt > LOGIN_WINDOW_MS)) {
+        return true; // Allow
+    }
+    return record.count < MAX_LOGIN_ATTEMPTS;
+}
+
+function recordFailedLogin(ip) {
+    const now = Date.now();
+    const record = LOGIN_ATTEMPTS.get(ip);
+    if (!record || (now - record.firstAttempt > LOGIN_WINDOW_MS)) {
+        LOGIN_ATTEMPTS.set(ip, { count: 1, firstAttempt: now });
+    } else {
+        record.count++;
+    }
+}
+
+function clearFailedLogins(ip) {
+    LOGIN_ATTEMPTS.delete(ip);
+}
+
+// Periodic cleanup of stale rate limit entries
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of LOGIN_ATTEMPTS.entries()) {
+        if (now - record.firstAttempt > LOGIN_WINDOW_MS) LOGIN_ATTEMPTS.delete(ip);
+    }
+}, 60000);
+
 // ── Password Hashing ──
 
 function hashPassword(password, salt) {
@@ -124,6 +160,7 @@ function destroySession(token) {
 
 /** Require any authenticated user */
 function requireAuth(req, res, next) {
+    // Note: query token is needed for media elements (img, audio, video src) that cannot send headers
     const token = req.headers['x-auth-token'] || req.query.token;
     if (!token) {
         return res.status(401).json({ error: 'Authentication required' });
@@ -157,5 +194,6 @@ module.exports = {
     hashPassword, verifyPassword,
     loadUsers, getUser, createUser, deleteUser, listUsers, changePassword,
     createSession, getSession, destroySession,
-    requireAuth, requireAdmin
+    requireAuth, requireAdmin,
+    checkRateLimit, recordFailedLogin, clearFailedLogins
 };

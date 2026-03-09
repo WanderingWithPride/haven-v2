@@ -13,7 +13,7 @@ const mDnsName = config.mDnsName || 'cyberdeck';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: false })); // Same-origin only — client is served by the same server
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -107,9 +107,17 @@ app.get('/third-party', (req, res) => {
     }
     if (inTable) html += '</tbody></table>';
 
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
     function applyInline(text) {
+        text = escapeHtml(text);
         return text
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+                // Only allow http/https URLs
+                if (!/^https?:\/\//i.test(url)) return escapeHtml(label);
+                return `<a href="${url}" target="_blank">${label}</a>`;
+            })
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     }
 
@@ -258,7 +266,18 @@ app.get('/api/store/ollama/blobs/:digest', (req, res, next) => {
 
 // Protected Store (requires login)
 app.use('/api/store', requireAuth, storeRouter);
-app.use('/api/dtn', dtnRoutes);
+
+// DTN: P2P sync endpoints (no auth - needed for peer-to-peer epidemic sync)
+app.post('/api/dtn/sync/check', (req, res, next) => {
+    req.url = '/sync/check';
+    dtnRoutes(req, res, next);
+});
+app.post('/api/dtn/sync/receive', (req, res, next) => {
+    req.url = '/sync/receive';
+    dtnRoutes(req, res, next);
+});
+// DTN: User-facing endpoints (require login)
+app.use('/api/dtn', requireAuth, dtnRoutes);
 
 // Config API (admin only)
 app.get('/api/config', requireAdmin, (req, res) => {
@@ -271,7 +290,7 @@ app.put('/api/config', requireAdmin, (req, res) => {
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
         res.json({ success: true, config });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -302,7 +321,7 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
 
     if (name === 'ollama') {
         exec('ollama serve &', (err) => {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err) return res.status(500).json({ error: 'Internal server error' });
             res.json({ success: true, message: 'Ollama started' });
         });
     } else if (name === 'kiwix') {
@@ -334,7 +353,7 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
             // Local fallback for Windows
             const port = config.services.kiwix.port || 8889;
             exec(`start /b kiwix-serve.exe --port=${port} "${zimFile}"`, { cwd: __dirname }, (err) => {
-                if (err) return res.status(500).json({ error: err.message });
+                if (err) return res.status(500).json({ error: 'Internal server error' });
                 return res.json({ success: true, message: `Kiwix started on port ${port}` });
             });
         } else {
@@ -349,7 +368,7 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
                         }
                         const port = config.services.kiwix.port || 8889;
                         exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
-                            if (err) return res.status(500).json({ error: err.message });
+                            if (err) return res.status(500).json({ error: 'Internal server error' });
                             res.json({ success: true, message: `Kiwix started on port ${port}` });
                         });
                     });
@@ -357,7 +376,7 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
                     const port = config.services.kiwix.port || 8889;
                     const startCmd = isWin ? `start /b kiwix-serve.exe --port=${port} "${zimFile}"` : `kiwix-serve --port=${port} "${zimFile}" &`;
                     exec(startCmd, (err) => {
-                        if (err) return res.status(500).json({ error: err.message });
+                        if (err) return res.status(500).json({ error: 'Internal server error' });
                         res.json({ success: true, message: `Kiwix started on port ${port}` });
                     });
                 } else {
@@ -411,20 +430,7 @@ app.get('/api/services/status', requireAdmin, async (req, res) => {
     });
 });
 
-// Terminal command execution (admin only)
-app.post('/api/terminal', requireAdmin, (req, res) => {
-    const { command } = req.body;
-    if (!command) return res.status(400).json({ error: 'No command provided' });
-
-    const { exec } = require('child_process');
-    exec(command, { timeout: 30000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
-        res.json({
-            exitCode: err ? err.code : 0,
-            stdout: stdout || '',
-            stderr: stderr || ''
-        });
-    });
-});
+// Terminal endpoint removed for security — arbitrary command execution is too dangerous
 
 // Get LAN IP
 function getLanIP() {

@@ -50,7 +50,7 @@ const FilesModule = {
                 <div class="empty-state">
                     <div class="empty-icon">📁</div>
                     <h3>Failed to load directory</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
     },
@@ -106,9 +106,9 @@ const FilesModule = {
             html += `
                 <div class="file-row" onclick="${clickAction}">
                     <span class="file-icon">${icon}</span>
-                    <span class="file-name">${item.name}</span>
-                    <span class="file-size">${item.sizeFormatted || ''}</span>
-                    <span class="file-date">${item.modified ? formatDate(item.modified) : ''}</span>
+                    <span class="file-name">${escapeHtml(item.name)}</span>
+                    <span class="file-size">${escapeHtml(item.sizeFormatted || '')}</span>
+                    <span class="file-date">${item.modified ? escapeHtml(formatDate(item.modified)) : ''}</span>
                     <div class="file-actions">
                         ${!item.isDirectory ? `<button class="file-action-btn" title="Share P2P" onclick="event.stopPropagation(); FilesModule.shareP2P('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}', '${item.name.replace(/'/g, "\\'")}')">📡</button>` : ''}
                         ${!item.isDirectory ? `<button class="file-action-btn" title="Download" onclick="event.stopPropagation(); FilesModule.download('${item.path.replace(/\\/g, '/').replace(/'/g, "\\'")}')">⬇</button>` : ''}
@@ -146,7 +146,7 @@ const FilesModule = {
 
         try {
             alert(`Ready to send ${fileName} to ${targetUser}.\n\nClick OK to build the payload and transmit.`);
-            P2PModule.updateP2PProgress(null, 0, 'Buffering local file...', fileName);
+            P2PModule.updateP2PProgress(null, 0, 'Buffering local file...', escapeHtml(fileName));
 
             const token = Auth.token ? `&token=${encodeURIComponent(Auth.token)}` : '';
             const res = await fetch(`${API}/api/files/download?path=${encodeURIComponent(filePath)}${token}`);

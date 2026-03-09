@@ -11,14 +11,24 @@ module.exports = function (config) {
             return res.status(400).json({ error: 'Username and password required' });
         }
 
+        // Rate limiting check
+        const clientIp = req.ip || req.connection.remoteAddress;
+        if (!auth.checkRateLimit(clientIp)) {
+            return res.status(429).json({ error: 'Too many login attempts. Try again in 15 minutes.' });
+        }
+
         const user = auth.getUser(username);
         if (!user) {
+            auth.recordFailedLogin(clientIp);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         if (!auth.verifyPassword(password, user.salt, user.passwordHash)) {
+            auth.recordFailedLogin(clientIp);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
+
+        auth.clearFailedLogins(clientIp);
 
         const token = auth.createSession(username, user.role);
         res.json({
@@ -59,8 +69,8 @@ module.exports = function (config) {
         if (username.length < 3) {
             return res.status(400).json({ error: 'Username must be 3+ characters' });
         }
-        if (password.length < 4) {
-            return res.status(400).json({ error: 'Password must be 4+ characters' });
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be 8+ characters' });
         }
         const validRoles = ['user', 'admin'];
         const userRole = validRoles.includes(role) ? role : 'user';
@@ -79,8 +89,8 @@ module.exports = function (config) {
     // Change user password
     router.put('/users/:username/password', auth.requireAdmin, (req, res) => {
         const { password } = req.body;
-        if (!password || password.length < 4) {
-            return res.status(400).json({ error: 'Password must be 4+ characters' });
+        if (!password || password.length < 8) {
+            return res.status(400).json({ error: 'Password must be 8+ characters' });
         }
         const result = auth.changePassword(req.params.username, password);
         if (result.error) return res.status(400).json(result);

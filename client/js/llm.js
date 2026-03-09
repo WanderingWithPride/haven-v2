@@ -88,7 +88,7 @@ const LLMModule = {
 
         // Add user message
         this.messages.push({ role: 'user', content: text });
-        this.appendMessage('user', text);
+        this.appendMessage('user', escapeHtml(text));
 
         // Create assistant bubble
         const bubbleId = 'msg-' + Date.now();
@@ -133,7 +133,7 @@ const LLMModule = {
             this.messages.push({ role: 'assistant', content: fullResponse });
         } catch (err) {
             const bubble = document.getElementById(bubbleId);
-            bubble.innerHTML = `<span style="color:var(--red)">Error: ${err.message}</span>`;
+            bubble.innerHTML = `<span style="color:var(--red)">Error: ${escapeHtml(err.message)}</span>`;
         }
 
         this.isGenerating = false;
@@ -161,6 +161,7 @@ const LLMModule = {
     renderMarkdown(text) {
         // Simple markdown rendering
         return text
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") // escape raw HTML first
             .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
             .replace(/`([^`]+)`/g, '<code>$1</code>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')

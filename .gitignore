@@ -7,5 +7,6 @@ server/vault_data
 server/kiwix-serve.exe
 server/package-lock.json
 server/users.json
+server/config.json
 server/dtn_spool/
 CyberDeck-Website/

@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const { getSession } = require('./utils/auth');
 
 module.exports = function setupChat(server) {
     const wss = new WebSocket.Server({ server, path: '/ws/chat' });
@@ -8,14 +9,44 @@ module.exports = function setupChat(server) {
 
     wss.on('connection', (ws) => {
         let username = 'Anonymous';
+        let authenticated = false;
+
+        // Close connection if not authenticated within 10 seconds
+        const authTimeout = setTimeout(() => {
+            if (!authenticated) {
+                ws.close(4001, 'Authentication timeout');
+            }
+        }, 10000);
 
         ws.on('message', (data) => {
             try {
                 const msg = JSON.parse(data);
 
+                // All messages except 'join' require authentication
+                if (!authenticated && msg.type !== 'join') {
+                    ws.send(JSON.stringify({ type: 'error', text: 'Not authenticated. Send a join message with a valid token.' }));
+                    return;
+                }
+
                 switch (msg.type) {
                     case 'join':
-                        username = msg.username || 'Anonymous';
+                        // Validate auth token
+                        const token = msg.token;
+                        if (!token) {
+                            ws.send(JSON.stringify({ type: 'error', text: 'Authentication token required' }));
+                            ws.close(4002, 'No auth token');
+                            return;
+                        }
+                        const session = getSession(token);
+                        if (!session) {
+                            ws.send(JSON.stringify({ type: 'error', text: 'Invalid or expired token' }));
+                            ws.close(4003, 'Invalid token');
+                            return;
+                        }
+
+                        authenticated = true;
+                        clearTimeout(authTimeout);
+                        username = session.username || msg.username || 'Anonymous';
                         clients.set(ws, username);
                         // Send history to new user
                         ws.send(JSON.stringify({
@@ -59,13 +90,10 @@ module.exports = function setupChat(server) {
                     case 'webrtc-answer':
                     case 'webrtc-ice':
                     case 'webrtc-decline':
-                        // Simply relay the signal to everyone (or specific target if msg.target exists)
-                        // In a production app you'd route directly to msg.target, but broadcasting 
-                        // on a small LAN is sufficient and the target client will filter it.
                         broadcast({
                             type: msg.type,
                             from: username,
-                            target: msg.target, // The intended recipient
+                            target: msg.target,
                             fileName: msg.fileName,
                             fileSize: msg.fileSize,
                             sdp: msg.sdp,
@@ -74,7 +102,6 @@ module.exports = function setupChat(server) {
                         break;
 
                     // DTN Engine: Background Auto-Sync Relay
-                    // Bypasses Android mDNS blockage by routing epidemic sync over established Websockets
                     case 'dtn-sync':
                         broadcast({
                             type: 'dtn-sync',
@@ -89,13 +116,16 @@ module.exports = function setupChat(server) {
         });
 
         ws.on('close', () => {
-            clients.delete(ws);
-            broadcast({
-                type: 'system',
-                text: `${username} left the chat`,
-                timestamp: Date.now()
-            });
-            broadcastUserList();
+            clearTimeout(authTimeout);
+            if (authenticated) {
+                clients.delete(ws);
+                broadcast({
+                    type: 'system',
+                    text: `${username} left the chat`,
+                    timestamp: Date.now()
+                });
+                broadcastUserList();
+            }
         });
     });
 

@@ -38,14 +38,14 @@ module.exports = function (config) {
                 books
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Serve ebook file (for reader)
     router.get('/read/:id', (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.ebooks);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
             const ext = path.extname(filePath).toLowerCase();
@@ -60,20 +60,20 @@ module.exports = function (config) {
             res.set('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
             fs.createReadStream(filePath).pipe(res);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Get ebook cover (extract from EPUB if possible, or generate thumbnail)
     router.get('/cover/:id', async (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.ebooks);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
             // For now, return a placeholder. EPUB cover extraction could be added later.
             res.status(404).json({ error: 'Cover not available' });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

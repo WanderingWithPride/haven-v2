@@ -390,47 +390,7 @@
             border-color: var(--cyan);
         }
 
-        .terminal {
-            background: #000;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            min-height: 200px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
 
-        .terminal-output {
-            white-space: pre-wrap;
-            word-break: break-all;
-            color: var(--green);
-            line-height: 1.5;
-        }
-
-        .terminal-input-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .terminal-prompt {
-            color: var(--cyan);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-        }
-
-        .terminal-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            outline: none;
-        }
 
         /* User Management */
         .user-table {
@@ -636,7 +596,7 @@
                 </div>
             </div>
 
-            <!-- Library & Terminal -->
+            <!-- Library -->
             <div class="grid">
                 <div class="card">
                     <h3><span class="icon">📂</span> Library Scanner</h3>
@@ -650,17 +610,6 @@
                             id="libEbooks">—</span></div>
                     <button class="btn" onclick="scanAll()" style="margin-top:12px;width:100%">🔄 Scan All
                         Libraries</button>
-                </div>
-                <div class="card">
-                    <h3><span class="icon">💻</span> Terminal</h3>
-                    <div class="terminal">
-                        <div class="terminal-output" id="termOutput">Welcome to CyberDeck Terminal\n$ </div>
-                    </div>
-                    <div class="terminal-input-row">
-                        <span class="terminal-prompt">$</span>
-                        <input type="text" class="terminal-input" id="termInput" placeholder="Type a command..."
-                            onkeydown="if(event.key==='Enter')runCommand()">
-                    </div>
                 </div>
             </div>
         </div>
@@ -892,21 +841,7 @@
             }
         }
 
-        async function runCommand() {
-            const input = document.getElementById('termInput');
-            const output = document.getElementById('termOutput');
-            const cmd = input.value.trim();
-            if (!cmd) return;
-            output.textContent += cmd + '\n'; input.value = '';
-            try {
-                const r = await adminFetch(`${API}/api/terminal`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ command: cmd }) });
-                const d = await r.json();
-                if (d.stdout) output.textContent += d.stdout;
-                if (d.stderr) output.textContent += d.stderr;
-            } catch (e) { output.textContent += 'Error: ' + e.message + '\n'; }
-            output.textContent += '$ ';
-            output.parentElement.scrollTop = output.parentElement.scrollHeight;
-        }
+
 
         // ── Init ──
         (async () => {

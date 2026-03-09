@@ -32,9 +32,23 @@ module.exports = function (config) {
         return packets;
     }
 
-    // Helper: Write packet to spool
+    // Helper: Write packet to spool (with limits)
     function savePacket(packet) {
         try {
+            // Check packet size
+            const packetSize = Buffer.byteLength(JSON.stringify(packet), 'utf8');
+            if (packetSize > 2 * 1024 * 1024) { // 2MB limit
+                console.warn(`[DTN] Rejecting oversized packet: ${packetSize} bytes`);
+                return false;
+            }
+
+            // Enforce max spool size (e.g., 500 packets)
+            const currentPackets = getSpoolPackets();
+            if (currentPackets.length >= 500) {
+                console.warn('[DTN] Spool threshold reached. Rejecting incoming packet.');
+                return false;
+            }
+
             const filePath = path.join(SPOOL_DIR, `${packet.id}.json`);
             if (!fs.existsSync(filePath)) {
                 fs.writeFileSync(filePath, JSON.stringify(packet, null, 2));
@@ -93,6 +107,10 @@ module.exports = function (config) {
         const { sender, dest, type, payload, ttl_hours = 48 } = req.body;
 
         if (!payload) return res.status(400).json({ error: 'Missing payload' });
+
+        if (Buffer.byteLength(payload, 'utf8') > 2 * 1024 * 1024) {
+            return res.status(400).json({ error: 'Payload exceeds 2MB limit' });
+        }
 
         const now = Date.now();
         const packet = {
@@ -164,6 +182,12 @@ module.exports = function (config) {
     router.post('/manual_sync', async (req, res) => {
         const peerIp = req.body.targetIp;
         if (!peerIp) return res.status(400).json({ error: 'Missing targetIp' });
+
+        // SSRF Protection: Only allow private network IPs
+        const isPrivate = /^10\./.test(peerIp) || /^172\.(1[6-9]|2[0-9]|3[01])\./.test(peerIp) || /^192\.168\./.test(peerIp);
+        if (!isPrivate || peerIp === '127.0.0.1' || peerIp === '::1') {
+            return res.status(400).json({ error: 'Invalid peer IP: must be a private network address' });
+        }
 
         try {
             const fetch = require('node-fetch').default || require('node-fetch');

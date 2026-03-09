@@ -36,7 +36,7 @@ const SurvivalModule = {
                 <div class="empty-state">
                     <div class="empty-icon">📖</div>
                     <h3>Knowledge base unavailable</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
     },
@@ -81,8 +81,8 @@ const SurvivalModule = {
                 <div class="article-item" onclick="SurvivalModule.readArticle('${article.id}')">
                     <span class="article-icon">📄</span>
                     <div class="article-info">
-                        <div class="article-title">${article.title}</div>
-                        <div class="article-meta">${formatBytes(article.size)}</div>
+                        <div class="article-title">${escapeHtml(article.title)}</div>
+                        <div class="article-meta">${escapeHtml(formatBytes(article.size))}</div>
                     </div>
                 </div>`;
         });
@@ -106,7 +106,7 @@ const SurvivalModule = {
                 <div class="article-reader">${html}</div>
             `;
         } catch (err) {
-            el.innerHTML = `<div class="empty-state"><h3>Failed to load article</h3><p>${err.message}</p></div>`;
+            el.innerHTML = `<div class="empty-state"><h3>Failed to load article</h3><p>${escapeHtml(err.message)}</p></div>`;
         }
     },
 
@@ -120,20 +120,20 @@ const SurvivalModule = {
             const data = await res.json();
 
             if (data.results.length === 0) {
-                el.innerHTML = `<div class="empty-state"><h3>No results for "${query}"</h3></div>`;
+                el.innerHTML = `<div class="empty-state"><h3>No results for "${escapeHtml(query)}"</h3></div>`;
                 return;
             }
 
             let html = `<button class="btn" onclick="SurvivalModule.renderCategories()" style="margin-bottom:16px">← Back</button>
-                        <h3 style="margin-bottom:16px">${data.results.length} results for "${query}"</h3>
+                        <h3 style="margin-bottom:16px">${data.results.length} results for "${escapeHtml(query)}"</h3>
                         <div class="article-list">`;
             data.results.forEach(r => {
                 html += `
                     <div class="article-item" onclick="SurvivalModule.readArticle('${r.id}')">
                         <span class="article-icon">📄</span>
                         <div class="article-info">
-                            <div class="article-title">${r.title}</div>
-                            <div class="article-meta">${r.category} · ${r.snippet}</div>
+                            <div class="article-title">${escapeHtml(r.title)}</div>
+                            <div class="article-meta">${escapeHtml(r.category)} · ${escapeHtml(r.snippet)}</div>
                         </div>
                     </div>`;
             });

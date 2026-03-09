@@ -56,7 +56,7 @@ const StoreModule = {
             // Check what's already downloaded
             this.checkExistingDownloads();
         } catch (err) {
-            document.getElementById('storeContent').innerHTML = `<div class="empty-state"><h3>Store unavailable</h3><p>${err.message}</p></div>`;
+            document.getElementById('storeContent').innerHTML = `<div class="empty-state"><h3>Store unavailable</h3><p>${escapeHtml(err.message)}</p></div>`;
         }
     },
 
@@ -96,15 +96,15 @@ const StoreModule = {
                 html += `
                     <div class="store-item card">
                         <div class="store-item-header">
-                            <strong>${item.name}</strong>
-                            <span class="tag tag-cyan" id="size-${item.id}">${item.size}</span>
+                            <strong>${escapeHtml(item.name)}</strong>
+                            <span class="tag tag-cyan" id="size-${item.id}">${escapeHtml(item.size)}</span>
                         </div>
-                        <p style="font-size:12px;color:var(--text-dim);margin:6px 0">${item.desc}</p>
+                        <p style="font-size:12px;color:var(--text-dim);margin:6px 0">${escapeHtml(item.desc)}</p>
                         ${item.license ? `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:10px;">
-                            <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ License: ${item.license}</span>
-                            ${item.licenseUrl ? `<a href="${item.licenseUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">View License</a>` : ''}
-                            ${item.source ? `<span style="color:var(--text-dim);">Source: <a href="${item.sourceUrl || '#'}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">${item.source}</a></span>` : ''}
-                            ${item.distributor ? `<span style="color:var(--text-dim);font-style:italic;">${item.distributor}</span>` : ''}
+                            <span class="tag" style="font-size:10px;color:var(--green);border-color:var(--green);background:transparent;">⚖️ License: ${escapeHtml(item.license)}</span>
+                            ${item.licenseUrl ? `<a href="${escapeHtml(item.licenseUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">View License</a>` : ''}
+                            ${item.source ? `<span style="color:var(--text-dim);">Source: <a href="${escapeHtml(item.sourceUrl || '#')}" target="_blank" rel="noopener noreferrer" style="color:var(--cyan);text-decoration:underline;">${escapeHtml(item.source)}</a></span>` : ''}
+                            ${item.distributor ? `<span style="color:var(--text-dim);font-style:italic;">${escapeHtml(item.distributor)}</span>` : ''}
                         </div>` : ''}
                         <div class="store-item-actions">
                             <div class="store-progress" id="prog-${item.id}" style="display:none">
@@ -155,7 +155,7 @@ const StoreModule = {
                                 <th style="padding: 12px; min-width: 150px;">Item Name</th>
                                 <th style="padding: 12px; width: 100px;">Type</th>
                                 <th style="padding: 12px; width: 100px;">Size</th>
-                                <th style="padding: 12px; min-width: 300px;">Absolute Path</th>
+                                <th style="padding: 12px; min-width: 300px;">Path / ID</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -170,10 +170,10 @@ const StoreModule = {
 
                 html += `
                     <tr style="border-bottom: 1px solid var(--border);">
-                        <td style="padding: 12px; font-weight: bold;">${icon} ${f.name}</td>
+                        <td style="padding: 12px; font-weight: bold;">${icon} ${escapeHtml(f.name)}</td>
                         <td style="padding: 12px;"><span class="tag" style="color: ${typeClr}; border-color: ${typeClr}; background: transparent;">${f.type.toUpperCase()}</span></td>
                         <td style="padding: 12px; font-family: 'JetBrains Mono', monospace;">${sizeStr}</td>
-                        <td style="padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); word-break: break-all;">${f.absolutePath}</td>
+                        <td style="padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); word-break: break-all;">${escapeHtml(f.relativePath || f.name)}</td>
                     </tr>
                 `;
             });
@@ -185,7 +185,7 @@ const StoreModule = {
             `;
             el.innerHTML = html;
         } catch (e) {
-            el.innerHTML = `<div class="card" style="border-color: var(--red); color: var(--red);">Failed to load offline content: ${e.message}</div>`;
+            el.innerHTML = `<div class="card" style="border-color: var(--red); color: var(--red);">Failed to load offline content: ${escapeHtml(e.message)}</div>`;
         }
     },
 

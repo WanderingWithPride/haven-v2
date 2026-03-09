@@ -39,7 +39,7 @@ const EbooksModule = {
                 <div class="empty-state">
                     <div class="empty-icon">📖</div>
                     <h3>Ebook library unavailable</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
     },
@@ -70,10 +70,10 @@ const EbooksModule = {
             html += `
                 <div class="book-card" onclick="EbooksModule.openBook('${book.id}', '${book.title.replace(/'/g, "\\'")}', '${book.ext}')">
                     <div class="book-cover">📖</div>
-                    <div class="book-title">${book.title}</div>
+                    <div class="book-title">${escapeHtml(book.title)}</div>
                     <div class="book-format">
-                        <span class="tag ${formatColor}">${book.format}</span>
-                        · ${formatBytes(book.size)}
+                        <span class="tag ${formatColor}">${escapeHtml(book.format)}</span>
+                        · ${escapeHtml(formatBytes(book.size))}
                     </div>
                 </div>`;
         });
@@ -100,7 +100,7 @@ const EbooksModule = {
         overlay.innerHTML = `
             <div class="reader-toolbar">
                 <button class="back-btn" onclick="EbooksModule.closeReader()">← </button>
-                <span class="book-reading-title">${title}</span>
+                <span class="book-reading-title">${escapeHtml(title)}</span>
                 <button class="btn" onclick="EbooksModule.prevPage()">◀ Prev</button>
                 <button class="btn" onclick="EbooksModule.nextPage()">Next ▶</button>
             </div>
@@ -120,7 +120,7 @@ const EbooksModule = {
             document.getElementById('readerContent').innerHTML = `
                 <div class="empty-state" style="padding-top:100px">
                     <h3>Failed to open EPUB</h3>
-                    <p>${err.message}</p>
+                    <p>${escapeHtml(err.message)}</p>
                 </div>`;
         }
 
@@ -140,7 +140,7 @@ const EbooksModule = {
         overlay.innerHTML = `
             <div class="reader-toolbar">
                 <button class="back-btn" onclick="EbooksModule.closeReader()">←</button>
-                <span class="book-reading-title">${title}</span>
+                <span class="book-reading-title">${escapeHtml(title)}</span>
             </div>
             <div class="reader-content">
                 <iframe src="${API}/api/ebooks/read/${id}${tokenParam}" title="${title}"></iframe>

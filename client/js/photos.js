@@ -61,7 +61,7 @@ const PhotosModule = {
                 html += `
                     <div class="photo-item" onclick="PhotosModule.openLightbox(${idx})">
                         <img src="${API}/api/photos/thumb/${photo.id}${tokenParam}" 
-                             alt="${photo.name}" loading="lazy"
+                             alt="${escapeHtml(photo.name)}" loading="lazy"
                              onerror="this.parentElement.innerHTML='🖼️'">
                     </div>`;
             });
@@ -80,7 +80,7 @@ const PhotosModule = {
         overlay.innerHTML = `
             <button class="lightbox-close" onclick="PhotosModule.closeLightbox()">✕</button>
             <button class="lightbox-nav prev" onclick="event.stopPropagation(); PhotosModule.lightboxPrev()">‹</button>
-            <img src="${API}/api/photos/full/${photo.id}${tokenParam}" alt="${photo.name}">
+            <img src="${API}/api/photos/full/${photo.id}${tokenParam}" alt="${escapeHtml(photo.name)}">
             <button class="lightbox-nav next" onclick="event.stopPropagation(); PhotosModule.lightboxNext()">›</button>
         `;
         overlay.addEventListener('click', (e) => {

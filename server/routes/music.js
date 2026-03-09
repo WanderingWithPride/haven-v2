@@ -76,14 +76,14 @@ module.exports = function (config) {
                 albums: Object.values(albums)
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Stream audio file
     router.get('/stream/:id', (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.music);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
             const stat = fs.statSync(filePath);
@@ -113,14 +113,14 @@ module.exports = function (config) {
                 fs.createReadStream(filePath).pipe(res);
             }
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Get album cover
     router.get('/cover/:id', async (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.music);
             if (!fs.existsSync(filePath) || !mm) {
                 return res.status(404).json({ error: 'Cover not available' });
             }
@@ -132,7 +132,7 @@ module.exports = function (config) {
             res.set('Content-Type', picture.format);
             res.send(picture.data);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

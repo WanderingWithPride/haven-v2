@@ -37,14 +37,14 @@ module.exports = function (config) {
                     .map(([name, items]) => ({ name, count: items.length, videos: items }))
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     // Stream video with range support
     router.get('/stream/:id', (req, res) => {
         try {
-            const filePath = decodeFileId(req.params.id);
+            const filePath = decodeFileId(req.params.id, config.paths.videos);
             if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
             const stat = fs.statSync(filePath);
@@ -74,7 +74,7 @@ module.exports = function (config) {
                 fs.createReadStream(filePath).pipe(res);
             }
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 

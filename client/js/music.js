@@ -76,10 +76,10 @@ const MusicModule = {
                 <div class="track-row ${playing ? 'playing' : ''}" onclick="MusicPlayer.play(${i}, MusicModule.filteredTracks)">
                     <span class="track-num">${playing ? '▶' : i + 1}</span>
                     <div class="track-info">
-                        <div class="track-name">${track.title || track.name}</div>
-                        <div class="track-artist-album">${track.artist || ''} ${track.album ? '· ' + track.album : ''}</div>
+                        <div class="track-name">${escapeHtml(track.title || track.name)}</div>
+                        <div class="track-artist-album">${escapeHtml(track.artist || '')} ${track.album ? '· ' + escapeHtml(track.album) : ''}</div>
                     </div>
-                    <span class="tag tag-cyan track-format">${track.format || track.ext}</span>
+                    <span class="tag tag-cyan track-format">${escapeHtml(track.format || track.ext)}</span>
                     <span class="track-duration">${formatDuration(track.duration)}</span>
                 </div>`;
         });

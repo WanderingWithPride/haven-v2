@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -7,6 +7,22 @@ const os = require('os');
 const https = require('https');
 const http = require('http');
 
+// Strict validation for Ollama model names (e.g. tinyllama:latest, phi3:mini, gemma2:2b)
+const SAFE_MODEL_NAME = /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/;
+
+// SSRF Protection: Validate that an IP is a private/LAN address (RFC 1918)
+function isPrivateIp(ip) {
+    if (!ip) return false;
+    // IPv4 private ranges
+    if (/^10\./.test(ip)) return true;
+    if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)) return true;
+    if (/^192\.168\./.test(ip)) return true;
+    // Link-local
+    if (/^169\.254\./.test(ip)) return false; // Block link-local (cloud metadata)
+    // Localhost
+    if (ip === '127.0.0.1' || ip === '::1') return false; // Block localhost SSRF
+    return false;
+}
 // Helper: HTTP(S) GET that follows redirects (up to 5)
 function httpsGet(url, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
@@ -238,9 +254,14 @@ module.exports = function (config) {
 
         if (type === 'ollama') {
             const dlId = id;
-            activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: '', type: 'ollama', modelName: cmd.replace('ollama pull ', '') });
+            // Extract and validate model name
+            const modelName = (cmd || '').replace(/^ollama\s+pull\s+/, '').trim();
+            if (!SAFE_MODEL_NAME.test(modelName)) {
+                return res.status(400).json({ error: 'Invalid model name' });
+            }
+            activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: '', type: 'ollama', modelName });
 
-            const proc = exec(cmd, { timeout: 3600000 });
+            const proc = execFile('ollama', ['pull', modelName], { timeout: 3600000 });
             activeProcesses.set(dlId, { type: 'process', proc });
             let output = '';
             proc.stdout?.on('data', (d) => {
@@ -370,7 +391,12 @@ module.exports = function (config) {
                 return res.status(500).json({ error: e.message });
             }
         } else if (dl && dl.type === 'ollama' && dl.modelName) {
-            exec(`ollama rm ${dl.modelName}`, { timeout: 30000 }, (err) => {
+            // Validate model name before passing to exec
+            if (!SAFE_MODEL_NAME.test(dl.modelName)) {
+                activeDownloads.delete(dlId);
+                return res.status(400).json({ error: 'Invalid model name' });
+            }
+            execFile('ollama', ['rm', dl.modelName], { timeout: 30000 }, (err) => {
                 activeDownloads.delete(dlId);
                 if (err) return res.json({ success: true, message: 'Removed from store (ollama rm may have failed)' });
                 res.json({ success: true, message: `Model ${dl.modelName} deleted` });
@@ -503,7 +529,7 @@ module.exports = function (config) {
                         name: f.replace('.zim', ''),
                         type: 'zim',
                         sizeBytes: stat.size,
-                        absolutePath: fullPath,
+                        relativePath: f,
                         date: stat.mtime
                     });
                 }
@@ -521,7 +547,7 @@ module.exports = function (config) {
                         name: 'Offline Map Tiles',
                         type: 'map',
                         sizeBytes: size,
-                        absolutePath: mapsPath,
+                        relativePath: 'maps/',
                         date: fs.statSync(mapsPath).mtime
                     });
                 }
@@ -552,7 +578,7 @@ module.exports = function (config) {
                             name: 'LLM: ' + name,
                             type: 'ollama',
                             sizeBytes: sizeBytes,
-                            absolutePath: 'ollama internal registry',
+                            relativePath: 'ollama internal registry',
                             date: new Date()
                         });
                     }
@@ -778,6 +804,11 @@ module.exports = function (config) {
         const { peerIp } = req.body;
         if (!peerIp) return res.status(400).json({ error: 'Missing peerIp' });
 
+        // SSRF Protection
+        if (!isPrivateIp(peerIp)) {
+            return res.status(400).json({ error: 'Invalid peer IP: must be a private network address' });
+        }
+
         try {
             const port = config.httpsPort || 8443;
             const url = `https://${peerIp}:${port}/api/store/library`;
@@ -841,6 +872,11 @@ module.exports = function (config) {
     router.post('/peer/pull', async (req, res) => {
         const { peerIp, filename, licenseData, type } = req.body;
         if (!peerIp || !filename) return res.status(400).json({ error: 'Missing peerIp or filename' });
+
+        // SSRF Protection
+        if (!isPrivateIp(peerIp)) {
+            return res.status(400).json({ error: 'Invalid peer IP: must be a private network address' });
+        }
 
         // Sanitize
         if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {

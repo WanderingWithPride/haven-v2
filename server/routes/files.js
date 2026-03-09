@@ -13,8 +13,14 @@ module.exports = function (config) {
     // Ensure path stays within root
     function safePath(requestedPath) {
         const resolved = path.resolve(rootPath, requestedPath || '');
-        if (!resolved.startsWith(rootPath)) return rootPath;
-        return resolved;
+        const normalizedRoot = path.normalize(rootPath);
+        const normalizedResolved = path.normalize(resolved);
+        // Case-insensitive comparison on Windows
+        const compare = process.platform === 'win32'
+            ? (a, b) => a.toLowerCase().startsWith(b.toLowerCase())
+            : (a, b) => a.startsWith(b);
+        if (!compare(normalizedResolved, normalizedRoot)) return normalizedRoot;
+        return normalizedResolved;
     }
 
     // List directory contents
@@ -62,7 +68,7 @@ module.exports = function (config) {
                 items
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -81,7 +87,7 @@ module.exports = function (config) {
             res.set('Content-Length', stat.size);
             fs.createReadStream(filePath).pipe(res);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -96,7 +102,7 @@ module.exports = function (config) {
             res.set('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
             fs.createReadStream(filePath).pipe(res);
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -108,7 +114,7 @@ module.exports = function (config) {
                 fs.mkdirSync(dest, { recursive: true });
                 cb(null, dest);
             },
-            filename: (req, file, cb) => cb(null, file.originalname)
+            filename: (req, file, cb) => cb(null, path.basename(file.originalname))
         });
         const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 * 1024 } }); // 5GB limit
 
@@ -128,7 +134,7 @@ module.exports = function (config) {
             fs.mkdirSync(dirPath, { recursive: true });
             res.json({ success: true, path: path.relative(rootPath, dirPath) });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -147,7 +153,7 @@ module.exports = function (config) {
             }
             res.json({ success: true });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
@@ -161,7 +167,7 @@ module.exports = function (config) {
             fs.renameSync(fromPath, toPath);
             res.json({ success: true });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Internal server error' });
         }
     });
 
