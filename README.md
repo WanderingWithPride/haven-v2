@@ -63,7 +63,6 @@ CyberDeck includes a built-in store for downloading open-source knowledge packs,
 
 | Module | Description |
 |--------|-------------|
-| 📁 **Files** | Full file manager with upload/download/delete and **WebRTC P2P Sharing**. |
 | 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art, visualizer, and persistent queue. |
 | 📸 **Photos** | Photo gallery with lazy thumbnails, date grouping, EXIF data, and lightbox viewer. |
 | 🎬 **Videos** | Stream videos with range-request seeking and fullscreen support. |
@@ -105,6 +104,24 @@ cd CyberDeck\server
 # if installation fails, run the following command:
 powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
+
+### Windows Desktop App (Electron)
+For a standalone experience with a dedicated window and taskbar icon:
+
+1. Follow the **Windows (PowerShell)** setup above first.
+2. From the root `CyberDeck` directory, install Electron dependencies (if command fails, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first):
+   ```powershell
+   npm install
+   ```
+3. Build the portable executable:
+   ```powershell
+   npm run build
+   ```
+   The `.exe` will be generated in the `dist` folder.
+4. To run without building:
+   ```powershell
+   npm start
+   ```
 
 ### Starting the Server
 ```bash
