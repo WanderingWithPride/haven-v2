@@ -158,14 +158,45 @@ const SurvivalModule = {
             })
             .replace(/^\- (.+)$/gm, '<li>$1</li>')
             .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
-            .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-            .replace(/\|(.+)\|/g, (match) => {
-                const cells = match.split('|').filter(c => c.trim());
-                if (cells.every(c => /^[-:\s]+$/.test(c))) return '';
-                const tag = match.includes('---') ? 'th' : 'td';
-                return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+            .replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>')
+            // Table rendering (block-level parsing)
+            .replace(/((?:\|.+\|\s*\n)+)/g, (match) => {
+                const lines = match.trim().split('\n');
+                if (lines.length < 2) return match;
+
+                let headerIndex = -1;
+                let separatorIndex = -1;
+
+                // Find separator row (e.g., |---| or | :--- |)
+                for (let i = 0; i < lines.length; i++) {
+                    const cells = lines[i].split('|').filter(c => c.trim().length > 0);
+                    if (cells.length > 0 && cells.every(c => /^[-:\s]+$/.test(c))) {
+                        separatorIndex = i;
+                        headerIndex = i - 1;
+                        break;
+                    }
+                }
+
+                if (separatorIndex === -1) {
+                    // No separator found, treat all as regular rows or a malformed table
+                    const rows = lines.map(line => {
+                        const cells = line.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+                        return `<tr>${cells.map(c => `<td>${c.trim()}</td>`).join('')}</tr>`;
+                    });
+                    return `<table>${rows.join('')}</table>`;
+                }
+
+                const rows = [];
+                for (let i = 0; i < lines.length; i++) {
+                    if (i === separatorIndex) continue;
+
+                    const cells = lines[i].split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+                    const tag = (i === headerIndex) ? 'th' : 'td';
+                    rows.push(`<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`);
+                }
+
+                return `<table>${rows.join('')}</table>`;
             })
-            .replace(/(<tr>.*<\/tr>)/s, '<table>$1</table>')
             .replace(/^([^<\n].+)$/gm, '<p>$1</p>')
             .replace(/✅/g, '<span style="color:var(--green)">✅</span>')
             .replace(/❌/g, '<span style="color:var(--red)">❌</span>')

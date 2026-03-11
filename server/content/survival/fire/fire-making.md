@@ -6,12 +6,12 @@ Fire provides: **warmth, water purification, cooking, signaling, light, morale, 
 ## Method 1: Matches & Lighter (Always Carry)
 - Store matches in waterproof container
 - Waterproof matches by dipping in wax
-- Keep lighters dry — they work even after getting wet (let dry first)
+- Keep lighters dry: they work even after getting wet (let dry first)
 
 ## Method 2: Ferro Rod (Best Survival Tool)
 1. Hold rod steady against tinder
 2. Scrape striker DOWN the rod firmly
-3. Sparks at 3000°C — hot enough to ignite most tinder
+3. Sparks at 3000°C: hot enough to ignite most tinder
 4. Works when wet, lasts thousands of strikes
 
 ## Method 3: Bow Drill (Primitive)
@@ -27,7 +27,7 @@ Steps:
 2. Place ember tray under notch
 3. Wrap bowstring around spindle
 4. Press spindle into fireboard depression with socket
-5. Saw bow back and forth — steady, increasing speed
+5. Saw bow back and forth: steady, increasing speed
 6. Black dust collects in notch → ember forms
 7. Transfer ember to tinder bundle, blow gently into flame
 
@@ -48,12 +48,13 @@ Steps:
 8. Char cloth (pre-charred cotton)
 
 ## Building the Fire
-```
-Stage 1: TINDER     — smallest, most flammable material
-Stage 2: KINDLING   — pencil-thin sticks, small twigs
-Stage 3: FUEL WOOD  — wrist-thick sticks
-Stage 4: LOGS       — arm-thick wood for sustained burn
-```
+
+| Stage | Material | Purpose |
+|-------|----------|---------|
+| **1** | TINDER | smallest, most flammable material |
+| **2** | KINDLING | pencil-thin sticks, small twigs |
+| **3** | FUEL WOOD | wrist-thick sticks |
+| **4** | LOGS | arm-thick wood for sustained burn |
 
 ### Fire Lay Structures
 - **Teepee:** lean kindling against each other over tinder. Good for starting.

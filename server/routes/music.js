@@ -15,26 +15,31 @@ module.exports = function (config) {
 
     async function scanLibrary() {
         const now = Date.now();
-        if (library.length > 0 && now - lastScan < 60000) return library;
+        // 1-minute cache
+        if (library.length > 0 && now - lastScan < 60000) {
+            return library;
+        }
 
+        console.log(`[Music] Scanning: ${config.paths.music}`);
         const files = scanDirectory(config.paths.music, AUDIO_EXTS);
-
-        // Enrich with metadata if music-metadata is available
+        
         if (mm) {
             for (const file of files) {
                 try {
-                    const metadata = await mm.parseFile(file.path, { duration: true });
+                    const fullPath = path.join(config.paths.music, file.relativePath);
+                    // Extract all metadata, including the picture array to correctly set hasCover
+                    const metadata = await mm.parseFile(fullPath);
                     file.title = metadata.common.title || path.parse(file.name).name;
                     file.artist = metadata.common.artist || 'Unknown Artist';
                     file.album = metadata.common.album || 'Unknown Album';
                     file.year = metadata.common.year || null;
-                    file.track = metadata.common.track?.no || null;
                     file.duration = metadata.format.duration || 0;
-                    file.bitrate = metadata.format.bitrate || 0;
-                    file.sampleRate = metadata.format.sampleRate || 0;
                     file.format = metadata.format.codec || file.ext.toUpperCase();
+                    // We check if cover exists but don't extract yet
                     file.hasCover = metadata.common.picture && metadata.common.picture.length > 0;
+                    console.log(`[Music] Metadata OK: "${file.title}" by ${file.artist}`);
                 } catch (err) {
+                    console.warn(`[Music] Metadata failed for ${file.name}: ${err.message}`);
                     file.title = path.parse(file.name).name;
                     file.artist = 'Unknown Artist';
                     file.album = 'Unknown Album';
@@ -120,6 +125,7 @@ module.exports = function (config) {
     // Get album cover
     router.get('/cover/:id', async (req, res) => {
         try {
+            // decodeFileId returns the absolute path if rootDir is provided
             const filePath = decodeFileId(req.params.id, config.paths.music);
             if (!fs.existsSync(filePath) || !mm) {
                 return res.status(404).json({ error: 'Cover not available' });
@@ -130,8 +136,9 @@ module.exports = function (config) {
             if (!picture) return res.status(404).json({ error: 'No embedded cover' });
 
             res.set('Content-Type', picture.format);
-            res.send(picture.data);
+            res.end(picture.data); // Use res.end() to send raw binary Buffer, not res.send()
         } catch (err) {
+            console.error(`[Music] Cover error:`, err.message);
             res.status(500).json({ error: 'Internal server error' });
         }
     });

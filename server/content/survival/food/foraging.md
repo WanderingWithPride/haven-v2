@@ -21,14 +21,14 @@
 - **Coconut:** Water, meat, oil all nutritious.
 
 ### Protein Sources
-- **Insects:** Grasshoppers, crickets, ants (remove heads), grubs — roast first
+- **Insects:** Grasshoppers, crickets, ants (remove heads), grubs: roast first
 - **Worms:** Squeeze out gut contents, roast or boil
 - **Fish:** From clean water, cook thoroughly
 - **Snails:** Purge for 2 days, cook thoroughly (parasites)
 - **Bird eggs:** Always edible when fresh
 
 ### Avoid These
-- ❌ Mushrooms (unless 100% identified — too many deadly lookalikes)
+- ❌ Mushrooms (unless 100% identified: too many deadly lookalikes)
 - ❌ Plants with milky sap (exceptions exist but too risky)
 - ❌ Red berries (many are toxic; some are safe but don't guess)
 - ❌ Plants with umbrella-like flower clusters (hemlock family)
@@ -47,7 +47,7 @@
 ### Smoking
 1. Build a smoking rack above a fire pit (3-4 feet high)
 2. Use hardwood for smoke (oak, hickory, mesquite)
-3. **Do NOT use resinous wood** (pine, spruce — toxic compounds)
+3. **Do NOT use resinous wood** (pine, spruce: toxic compounds)
 4. Keep fire smoldering (not flaming)
 5. Smoke for 12-24 hours
 6. Shelf life: 1-2 weeks without refrigeration
@@ -65,7 +65,7 @@
 - Fermented foods provide probiotics and preserve nutrition
 
 ## Cooking Without Utensils
-- **Hot rock cooking:** Heat rocks in fire, drop into water-filled container (NOT river rocks — they can explode)
+- **Hot rock cooking:** Heat rocks in fire, drop into water-filled container (NOT river rocks: they can explode)
 - **Clay-bake:** Wrap in thick layer of clay, place in coals
 - **Green stick roasting:** Skewer on fresh (green) wood stick over flame
 - **Pit cooking:** Dig hole, line with hot rocks, add food wrapped in leaves, cover

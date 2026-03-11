@@ -378,6 +378,38 @@ module.exports = function (config) {
         res.json({ success: true, status: 'cancelled' });
     });
 
+    // Alias routes to match client expectations
+    router.post('/cancel/:id', (req, res) => {
+        const dlId = req.params.id;
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (proc) {
+            if (proc.type === 'process' && proc.proc) proc.proc.kill();
+            else if (proc.type === 'request' && proc.req) proc.req.destroy();
+            activeProcesses.delete(dlId);
+        }
+        if (dl) activeDownloads.set(dlId, { ...dl, status: 'cancelled' });
+        res.json({ success: true, status: 'cancelled' });
+    });
+
+    router.post('/pause/:id', (req, res) => {
+        const dlId = req.params.id;
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (proc && proc.type === 'request' && proc.req) {
+            proc.req.destroy();
+            activeProcesses.set(dlId, { ...proc, req: null });
+        }
+        if (dl) activeDownloads.set(dlId, { ...dl, status: 'paused' });
+        res.json({ success: true, status: 'paused' });
+    });
+
+    router.post('/resume/:id', (req, res) => {
+        res.json({ success: true, status: 'resuming' });
+    });
+
     // Delete a downloaded item
     router.delete('/delete/:id', (req, res) => {
         const dlId = req.params.id;

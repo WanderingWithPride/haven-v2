@@ -36,14 +36,14 @@
 5. It's the only star that doesn't move throughout the night
 
 ### Southern Hemisphere: Southern Cross
-1. Find the Southern Cross (Crux) — 4 bright stars in cross shape
+1. Find the Southern Cross (Crux): 4 bright stars in cross shape
 2. Extend the long axis of the cross 4.5x its length downward
 3. Drop a perpendicular line to the horizon
 4. **That point on the horizon = South**
 
 ## Using Natural Signs
 These are APPROXIMATIONS, not reliable alone:
-- Moss tends to grow on NORTH side of trees (Northern Hemisphere) — but is unreliable in dense forest
+- Moss tends to grow on NORTH side of trees (Northern Hemisphere): but is unreliable in dense forest
 - Ant hills often have their entrance on the SOUTH side (warmer)
 - Snow melts first on SOUTH-facing slopes
 - Spider webs often face SOUTH
@@ -86,4 +86,4 @@ If moving through unknown terrain:
 - Mark your path (stacked stones, broken branches, scratches on trees)
 - Note landmarks (distinctive rocks, rivers, ridges)
 - Travel along ridges when possible (better view, easier navigation)
-- Follow water downstream — it usually leads to civilization
+- Follow water downstream: it usually leads to civilization

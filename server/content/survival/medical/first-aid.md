@@ -5,7 +5,7 @@ The #1 killer in emergencies is uncontrolled bleeding.
 
 ### Direct Pressure
 1. Apply firm pressure with a clean cloth or bandage
-2. Do NOT remove the first cloth — add more on top
+2. Do NOT remove the first cloth: add more on top
 3. Maintain pressure for at least 10 minutes
 4. Elevate the wound above heart level if possible
 
@@ -13,14 +13,14 @@ The #1 killer in emergencies is uncontrolled bleeding.
 1. Place 2-3 inches above the wound (NOT on a joint)
 2. Tighten until bleeding stops
 3. Note the TIME of application
-4. Do NOT remove — let medical professionals handle it
+4. Do NOT remove: let medical professionals handle it
 5. Improvised: use belt, torn cloth, stick to twist tight
 
 ## CPR (Cardiopulmonary Resuscitation)
-1. Check responsiveness — tap shoulders, shout
+1. Check responsiveness: tap shoulders, shout
 2. Call for help
-3. **30 chest compressions** — push hard and fast, center of chest, 2 inches deep
-4. **2 rescue breaths** — tilt head back, lift chin, seal mouth
+3. **30 chest compressions**: push hard and fast, center of chest, 2 inches deep
+4. **2 rescue breaths**: tilt head back, lift chin, seal mouth
 5. Repeat 30:2 cycle
 6. Rate: 100-120 compressions per minute (think "Stayin' Alive" beat)
 

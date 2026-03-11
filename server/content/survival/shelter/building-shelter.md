@@ -25,7 +25,7 @@ Choose a location that is:
 3. Lay sticks against ridgepole at 45° angle on both sides
 4. Layer debris (leaves, grass, ferns) 3-4 feet thick
 5. Fill inside floor with dry debris for insulation
-6. Make it JUST big enough — body heat retention is key
+6. Make it JUST big enough: body heat retention is key
 
 **Body heat alone can keep interior 30°F warmer than outside.**
 
@@ -45,7 +45,7 @@ Choose a location that is:
 ### Quinzee
 1. Pile snow in mound 6+ feet high
 2. Wait 2 hours for snow to sinter (settle/bond)
-3. Hollow out — walls should be 12-18 inches thick
+3. Hollow out: walls should be 12-18 inches thick
 4. Punch ventilation hole with stick
 5. Door should be lower than sleeping platform (cold air sinks)
 
@@ -57,14 +57,14 @@ When buildings are damaged:
 - Look for interior rooms (most protected)
 - Avoid rooms with large windows
 - Block drafts with plastic, cardboard, blankets
-- Create a "warm room" — smallest room, seal doors/windows
+- Create a "warm room": smallest room, seal doors/windows
 - Insulate floor (sleeping on concrete = hypothermia)
 
 ## Insulation Priorities
 The ground steals MORE heat than the air:
-1. **Ground insulation first** — pile leaves, pine needles, cardboard (4+ inches)
-2. **Overhead protection** — rain/wind defense
-3. **Side walls** — wind block
+1. **Ground insulation first**: pile leaves, pine needles, cardboard (4+ inches)
+2. **Overhead protection**: rain/wind defense
+3. **Side walls**: wind block
 
 ## Essential Shelter Kit
 If you can prepare:

@@ -116,7 +116,7 @@ app.use('/api/llm', requireAuth, require('./routes/llm')(config));
 app.use('/api/wiki', requireAuth, require('./routes/wiki')(config));
 app.use('/api/maps', requireAuth, require('./routes/maps')(config));
 app.use('/api/ebooks', requireAuth, require('./routes/ebooks')(config));
-app.use('/api/files', requireAuth, require('./routes/files')(config));
+
 app.use('/api/survival', requireAuth, require('./routes/survival')(config));
 app.use('/api/vault', requireAuth, require('./routes/vault')(config));
 app.use('/api/power', requireAuth, require('./routes/power')(config));

@@ -4,7 +4,7 @@
 
 | Level | State | Description |
 |-------|-------|-------------|
-| ⬜ White | Unaware | Relaxed, not paying attention — AVOID this state |
+| ⬜ White | Unaware | Relaxed, not paying attention: AVOID this state |
 | 🟢 Green | Aware | Relaxed but alert, scanning environment |
 | 🟡 Yellow | Alert | Specific threat identified, preparing response |
 | 🟠 Orange | Alarm | Threat imminent, ready to act |
@@ -98,4 +98,4 @@ Store digitally (encrypted on this device):
 - Don't run (triggers pursuit response)
 - Don't photograph military/security forces
 - Don't carry anything that could be mistaken for a weapon
-- Don't resist if detained — stay calm, be cooperative
+- Don't resist if detained: stay calm, be cooperative

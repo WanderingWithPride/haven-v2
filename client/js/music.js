@@ -15,10 +15,13 @@ const MusicModule = {
                     <div class="module-title">Music</div>
                     <div class="module-subtitle" id="musicCount">Loading library...</div>
                 </div>
-                <div class="search-box">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" placeholder="Search tracks, artists, albums..." 
-                           id="musicSearch" oninput="MusicModule.filter(this.value)">
+                <div class="store-tabs">
+                    <button class="btn btn-outline" onclick="MusicModule.resync()" id="resyncMusicBtn">Resync Library</button>
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" placeholder="Search tracks, artists, albums..." 
+                               id="musicSearch" oninput="MusicModule.filter(this.value)">
+                    </div>
                 </div>
             </div>
             <div id="musicContent"><div class="loading-spinner"></div></div>
@@ -85,6 +88,25 @@ const MusicModule = {
         });
         html += '</div>';
         el.innerHTML = html;
+    },
+
+    async resync() {
+        const btn = document.getElementById('resyncMusicBtn');
+        btn.disabled = true;
+        btn.textContent = 'Scanning...';
+        try {
+            const res = await authFetch(`${API}/api/music/scan`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                await this.load();
+                showNotification(`Found ${data.total} tracks`);
+            }
+        } catch (e) {
+            showNotification('Scan failed: ' + e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Resync Library';
+        }
     }
 };
 

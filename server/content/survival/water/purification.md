@@ -1,7 +1,7 @@
 # Water Purification Methods
 
 ## Why Purify Water?
-Contaminated water can carry bacteria (cholera, typhoid), viruses (hepatitis, rotavirus), and parasites (giardia, cryptosporidium). In a survival situation, dehydration kills faster than starvation — but drinking contaminated water can be equally deadly.
+Contaminated water can carry bacteria (cholera, typhoid), viruses (hepatitis, rotavirus), and parasites (giardia, cryptosporidium). In a survival situation, dehydration kills faster than starvation: but drinking contaminated water can be equally deadly.
 
 ## Method 1: Boiling (Most Reliable)
 1. **Bring water to a rolling boil**
@@ -37,28 +37,29 @@ Contaminated water can carry bacteria (cholera, typhoid), viruses (hepatitis, ro
 
 ## Method 4: Improvised Filter
 Build a layered filter:
-```
-[Top]    Cloth/fabric (removes large debris)
-         Sand (fine filtration)
-         Charcoal (removes chemicals, taste)
-         Gravel (structural support)
-         Sand (final polish)
-[Bottom] Collection container
-```
+
+| Layer | Material (Purpose) |
+|-------|-------------------|
+| **Top** | Cloth/fabric (removes large debris) |
+| **Middle** | Sand (fine filtration) |
+| **Middle** | Charcoal (removes chemicals, taste) |
+| **Middle** | Gravel (structural support) |
+| **Middle** | Sand (final polish) |
+| **Bottom** | Collection container |
 
 1. Burn hardwood to make charcoal, crush finely
 2. Layer materials in a cut plastic bottle (top cut off)
 3. Pour water through slowly
-4. **STILL NEEDS BOILING** after filtering — filter alone doesn't kill viruses
+4. **STILL NEEDS BOILING** after filtering: filter alone doesn't kill viruses
 
 ## Method 5: Finding Water Sources
 Priority (best to worst):
-1. **Rainwater** — generally safe to drink directly
-2. **Springs** — usually safe, flowing from underground
-3. **Fast-moving streams** — better than still water
-4. **Morning dew** — collect with cloth, wring into container
-5. **Plant transpiration** — tie bag around leafy branch, collect condensation
-6. **Still water/ponds** — ALWAYS purify, highest contamination risk
+1. **Rainwater**: generally safe to drink directly
+2. **Springs**: usually safe, flowing from underground
+3. **Fast-moving streams**: better than still water
+4. **Morning dew**: collect with cloth, wring into container
+5. **Plant transpiration**: tie bag around leafy branch, collect condensation
+6. **Still water/ponds**: ALWAYS purify, highest contamination risk
 
 ## Signs of Dehydration
 - Dark urine (healthy = pale yellow)
