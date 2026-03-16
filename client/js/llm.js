@@ -18,7 +18,7 @@ const LLMModule = {
                         <div class="module-subtitle" id="llmStatus">Checking Ollama...</div>
                     </div>
                     <div style="display:flex; gap:10px; align-items:center;">
-                        <button class="btn btn-sm btn-outline" id="refreshModelsBtn" onclick="LLMModule.checkStatus()" title="Refresh Models">🔄</button>
+                        <button class="btn btn-sm btn-outline" id="refreshModelsBtn" onclick="LLMModule.checkStatus()" title="Refresh Models">Refresh</button>
                         <div class="model-selector">
                             <label>Model:</label>
                             <select id="modelSelect" onchange="LLMModule.selectedModel = this.value">

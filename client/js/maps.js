@@ -6,17 +6,34 @@ const MapsModule = {
     map: null,
 
     async init() {
+        const isSecureContext = window.isSecureContext ||
+            (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+
+        let secureWarning = '';
+        if (!isSecureContext) {
+            secureWarning = `
+                <div style="background: rgba(255,170,0,0.1); border: 1px solid var(--primary-dim); border-left: 4px solid var(--primary); padding: 15px; margin-bottom: 20px; border-radius: var(--radius); position: relative;">
+                    <h3 style="color: var(--primary); margin-top: 0; font-family: 'JetBrains Mono', monospace; font-size: 13px;">⚠️ Geolocation Restriction</h3>
+                    <p style="margin: 8px 0; font-size: 12px; color: var(--text);">Browser requires HTTPS for "My Location" to work on mobile/remote devices.</p>
+                    <button class="btn btn-sm btn-primary" onclick="window.location.href = 'https://' + window.location.hostname + ':8443'">
+                        Switch to HTTPS
+                    </button>
+                </div>
+            `;
+        }
+
         const el = document.getElementById('mod-maps');
         el.innerHTML = `
+            ${secureWarning}
             <div class="module-header">
                 <div>
                     <div class="module-title">Maps</div>
                     <div class="module-subtitle" id="mapStatus">Loading...</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn" onclick="MapsModule.locateMe()">📍 My Location</button>
-                    <button class="btn" id="btn-toggle-maps" onclick="MapsModule.toggleOnline()">🌍 Enable Online Maps</button>
-                    <button class="btn btn-primary" id="btn-dl-map" onclick="MapsModule.downloadRegion()">📥 Download Region</button>
+                    <button class="btn" onclick="MapsModule.locateMe()">My Location</button>
+                    <button class="btn" id="btn-toggle-maps" onclick="MapsModule.toggleOnline()">Enable Online Maps</button>
+                    <button class="btn btn-primary" id="btn-dl-map" onclick="MapsModule.downloadRegion()">Download Region</button>
                 </div>
             </div>
             

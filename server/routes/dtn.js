@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const meshLogger = require('../utils/meshLogger');
 
 module.exports = function (config) {
     const router = express.Router();
@@ -175,6 +176,10 @@ module.exports = function (config) {
             }
         }
 
+        if (accepted > 0) {
+            meshLogger.log(`P2P Sync: Received ${accepted} packets from peer`);
+        }
+
         res.json({ accepted });
     });
 
@@ -232,6 +237,10 @@ module.exports = function (config) {
                     });
                     stats.sent = peerNeeds.length;
                 }
+            }
+
+            if (stats.sent > 0 || stats.received > 0) {
+                meshLogger.log(`Manual Sync: Sent ${stats.sent}, Received ${stats.received} with ${peerIp}`);
             }
 
             res.json({ success: true, message: `Sync Complete: Sent ${stats.sent}, Received ${stats.received}` });

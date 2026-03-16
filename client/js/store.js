@@ -32,7 +32,6 @@ const StoreModule = {
             const btn = document.getElementById(`tab-${t}`);
             if (t === tab) {
                 btn.className = 'btn btn-primary';
-                btn.style.background = '';
             } else {
                 btn.className = 'btn';
                 btn.style.background = 'var(--surface2)';
@@ -214,8 +213,8 @@ const StoreModule = {
                     const text = document.getElementById(`text-${id}`);
                     const deleteBtn = document.getElementById(`delete-${id}`);
                     if (btn) { btn.textContent = 'DONE'; btn.disabled = true; }
-                    if (prog) prog.style.display = 'flex';
-                    if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--primary)'; }
+                    if (prog) prog.style.display = 'none';
+                    if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--border)'; }
                     if (text) text.textContent = 'Downloaded';
                     if (deleteBtn) deleteBtn.style.display = 'block';
                 }
@@ -370,8 +369,8 @@ const StoreModule = {
                     if (cancelBtn) cancelBtn.style.display = 'inline-block';
                     // We don't loop here. Resume will restart polling.
                 } else if (data.status === 'complete') {
-                    fill.style.width = '100%';
-                    fill.style.background = 'var(--primary)';
+                    if (prog) prog.style.display = 'none';
+                    if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--border)'; }
                     text.textContent = 'Complete';
                     btn.textContent = 'DONE';
                     btn.disabled = true;

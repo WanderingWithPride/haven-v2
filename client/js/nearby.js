@@ -81,7 +81,7 @@ const NearbyModule = {
         let html = `
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
                 <span style="font-size: 12px; color: var(--text-dim);">Your IP: <strong style="color: var(--cyan);">${escapeHtml(this.selfIp)}</strong></span>
-                <button class="btn btn-sm" style="font-size:12px;" onclick="NearbyModule.discoverPeers()">🔄 Refresh</button>
+                <button class="btn btn-sm" style="font-size:12px;" onclick="NearbyModule.discoverPeers()">Refresh</button>
             </div>`;
 
         if (this.peers.length === 0) {

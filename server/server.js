@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { requireAuth, requireAdmin } = require('./utils/auth');
+const meshLogger = require('./utils/meshLogger');
 
 // Data home resolution for persistence
 const dataHome = process.env.CYBERDECK_DATA_HOME;
@@ -189,6 +190,11 @@ app.get('/api/system', requireAdmin, (req, res) => {
     });
 });
 
+// Real Mesh Activity API
+app.get('/api/system/mesh-activity', requireAuth, (req, res) => {
+    res.json({ events: meshLogger.getEvents() });
+});
+
 // Service management API (admin only)
 app.post('/api/services/:name/start', requireAdmin, (req, res) => {
     const { name } = req.params;
@@ -343,8 +349,10 @@ app.get('/api/peers', requireAuth, (req, res) => {
     const now = Date.now();
     const peers = [];
     for (const [ip, lastSeen] of dtnPeers.entries()) {
-        if (now - lastSeen < 120000) {
+        if (now - lastSeen < 30000) {
             peers.push({ ip, lastSeen, agoMs: now - lastSeen });
+        } else if (now - lastSeen > 300000) {
+            dtnPeers.delete(ip); // Auto-purge entries older than 5 minutes
         }
     }
     let selfIp = getLanIP();
@@ -430,7 +438,7 @@ try {
                 const aRecord = response.additionals.find(r => r.name === answer.data && r.type === 'A');
                 if (aRecord && aRecord.data !== currentIp) {
                     if (!dtnPeers.has(aRecord.data)) {
-                        console.log(`\x1b[32m[DTN] mDNS DISCOVERY: Found P2P Node at ${aRecord.data}\x1b[0m`);
+                        meshLogger.log(`mDNS: Found P2P Node at ${aRecord.data}`);
                     }
                     dtnPeers.set(aRecord.data, Date.now());
                 }
@@ -473,7 +481,7 @@ try {
             const currentIp = getLanIP();
             if (payload.cyberdtn && rinfo.address !== currentIp) {
                 if (!dtnPeers.has(rinfo.address)) {
-                    console.log(`\x1b[32m[DTN] UDP DISCOVERY: Found P2P Node at ${rinfo.address}\x1b[0m`);
+                    meshLogger.log(`UDP: Found P2P Node at ${rinfo.address}`);
                 }
                 dtnPeers.set(rinfo.address, Date.now());
             }
@@ -494,8 +502,10 @@ app.get('/api/peers', requireAuth, (req, res) => {
     const now = Date.now();
     const peers = [];
     for (const [ip, lastSeen] of dtnPeers.entries()) {
-        if (now - lastSeen < 120000) {
+        if (now - lastSeen < 30000) {
             peers.push({ ip, lastSeen, agoMs: now - lastSeen });
+        } else if (now - lastSeen > 300000) {
+            dtnPeers.delete(ip); // Auto-purge entries older than 5 minutes
         }
     }
     let selfIp = getLanIP();
@@ -596,7 +606,7 @@ pemsPromise.then(pems => {
                     for (const p of data.payloads_for_you) {
                         if (savePacket(p)) r++;
                     }
-                    if (r > 0) console.log(`[DTN] Auto-Sync: Received ${r} missing packets from ${peerIp}`);
+                    if (r > 0) meshLogger.log(`Auto-Sync: Received ${r} packets from ${peerIp}`);
                 }
 
                 // Send them what they need

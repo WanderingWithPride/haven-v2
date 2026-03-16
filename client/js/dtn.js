@@ -21,7 +21,7 @@ const DtnModule = {
                     <div class="module-subtitle">Store-and-Forward delay-tolerant routing</div>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn" style="background:var(--surface2);" onclick="DtnModule.refresh()">🔄 Refresh Spool</button>
+                    <button class="btn" style="background:var(--surface2);" onclick="DtnModule.refresh()">Refresh Spool</button>
                     <button class="btn btn-primary" onclick="DtnModule.showNewMessageUI()">+ Inject Packet</button>
                 </div>
             </div>
@@ -49,9 +49,11 @@ const DtnModule = {
                     <p style="color: var(--text-dim); font-size: 12px; margin-bottom: 15px;">
                         CyberDeck automatically discovers nearby nodes using mDNS. If mDNS is blocked by a router or Android Hotspot, manually bridge the gap by entering the peer's IP here.
                     </p>
-                    <div class="search-box" style="display: flex; padding-right: 4px;">
-                        <input type="text" id="dtn-peer-ip" placeholder="e.g. 192.168.43.1" style="flex: 1; color: #fff;">
-                        <button class="btn btn-primary" onclick="DtnModule.manualSync()">Force Sync</button>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div class="search-box" style="flex: 1; max-width: none;">
+                            <input type="text" id="dtn-peer-ip" placeholder="e.g. 192.168.43.1" style="color: #fff;">
+                        </div>
+                        <button class="btn btn-primary" onclick="DtnModule.manualSync()" style="white-space: nowrap;">Force Sync</button>
                     </div>
                 </div>
 

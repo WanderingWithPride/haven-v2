@@ -33,86 +33,113 @@ const MeshModule = {
         let secureWarning = '';
         if (!isSecureContext) {
             secureWarning = `
-                <div style="background: rgba(255,0,0,0.2); border-left: 4px solid #f00; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-                    <h3 style="color: #f55; margin-top: 0;">⚠️ Security Restriction (HTTPS Required)</h3>
-                    <p style="margin-bottom: 10px;">Modern browsers block microphone, camera, and Bluetooth access over unsecured connections (HTTP). You are currently accessing CyberDeck over HTTP on a local network IP.</p>
-                    <button class="hub-btn danger" onclick="window.location.href = 'https://' + window.location.hostname + ':8443'">
-                        Switch to Secure Mode (HTTPS:8443)
-                    </button>
-                    <p style="color: #aaa; font-size: 0.85em; margin-top: 10px;">Note: Since CyberDeck generates an offline certificate, you will see a "Connection is not private" warning. Click <strong>Advanced -> Proceed</strong>.</p>
+                <div style="background: rgba(255,170,0,0.1); border: 1px solid var(--primary-dim); border-left: 4px solid var(--primary); padding: 20px; margin-bottom: 24px; border-radius: var(--radius); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top:0; left:0; right:0; height:1px; background: linear-gradient(90deg, transparent, var(--primary), transparent); opacity: 0.5;"></div>
+                    <h3 style="color: var(--primary); margin-top: 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+                        ⚠️ Security Restriction (HTTPS Required)
+                    </h3>
+                    <p style="margin: 12px 0; font-size: 13px; line-height: 1.5; color: var(--text);">
+                        Modern browsers block microphone, camera, and Bluetooth access over unsecured connections (HTTP). 
+                        To use <strong>Acoustic Comm</strong> or <strong>Acoustic RX</strong>, you must switch to a secure context.
+                    </p>
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="window.location.href = 'https://' + window.location.hostname + ':8443'">
+                            Switch to Secure Mode (HTTPS:8443)
+                        </button>
+                        <span style="color: var(--text-dim); font-size: 11px; font-family: 'JetBrains Mono', monospace; max-width: 300px;">
+                            Note: Click "Advanced" -> "Proceed" when the browser warns about the self-signed certificate.
+                        </span>
+                    </div>
                 </div>
             `;
         }
 
         const mod = document.getElementById('mod-mesh');
         mod.innerHTML = `
+            ${secureWarning}
             <div class="module-header">
                 <div>
-                    <div class="module-title">Mesh Networking</div>
-                    <div class="module-subtitle">Decentralized survival communication (Audio, Optical, BLE)</div>
+                    <div class="module-title">Secure Mesh Net</div>
+                    <div class="module-subtitle">Interactive node topology & signal visualization</div>
                 </div>
-                <button class="btn btn-primary" onclick="MeshModule.toggleReceive()" id="btnMeshRx" ${!isSecureContext ? 'disabled' : ''}>
-                    📡 Record (RX)
-                </button>
+                <div class="dash-controls">
+                    <button class="btn" onclick="MeshModule.toggleVisualizerMode()" id="btnMeshMode">2D VIEW</button>
+                    <button class="btn btn-primary" onclick="MeshModule.toggleReceive()" id="btnMeshRx" ${!isSecureContext ? 'disabled' : ''}>
+                        Record (RX)
+                    </button>
+                </div>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                ${secureWarning}
-                
-                <div class="card" style="${!isSecureContext ? 'opacity: 0.5; pointer-events: none;' : ''}">
-                    <h3 style="color:var(--cyan);margin-bottom:8px">Acoustic Data Transmission (MFSK Audio)</h3>
-                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
-                        Transmit text messages through the air using Frequency Shift Keying (MFSK). Requires no Wi-Fi or Bluetooth.
-                    </p>
-                    <div class="search-box" style="display: flex; flex-wrap: wrap; max-width: 100%; margin-bottom: 15px; padding-right: 4px;">
-                        <span class="search-icon">🎵</span>
-                        <input type="text" id="meshTxInput" placeholder="Enter message to transmit (e.g. SOS)" style="flex: 1; min-width: 200px;">
-                        <button class="btn btn-primary" onclick="MeshModule.transmitText()">Transmit (TX)</button>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <h3 style="color:var(--cyan);margin-bottom:12px">Received Audio Messages</h3>
-                    <div id="meshRxBox" style="min-height: 100px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'JetBrains Mono', monospace; color: var(--green); white-space: pre-wrap; overflow-y: auto;">Select "Record (RX)" to start listening for acoustic data...</div>
-                    <div id="meshSpectrum" style="margin-top: 12px; height: 40px; background: var(--bg); position: relative; border-radius: var(--radius-sm); overflow: hidden; display: none; border: 1px solid var(--border);"></div>
-                </div>
 
-                <div class="card">
-                    <h3 style="color:var(--cyan);margin-bottom:8px">"Sneakernet" QR Code Sync (Optical)</h3>
-                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
-                        Transfer highly resilient offline data using your device's camera. Perfect for noisy environments.
-                    </p>
-                    
-                    <div class="search-box" style="display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; margin-bottom: 20px; padding: 4px;">
-                        <span class="search-icon" style="position: static; margin-left: 10px;">📸</span>
-                        <input type="text" id="qrTxInput" placeholder="Enter message to generate QR payload" style="flex: 1; min-width: 180px; padding-left: 10px;">
-                        <button class="btn btn-primary" onclick="MeshModule.generateQR()">Generate QR</button>
-                        <button class="btn" onclick="MeshModule.startScanQR()" id="btnScanQR">Scan Camera</button>
-                    </div>
-
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div id="qrCodeContainer" style="background: #fff; padding: 16px; border-radius: var(--radius-sm); display: none;"></div>
-                        
-                        <div id="qrScannerContainer" style="display: none; flex-direction: column; gap: 12px; flex: 1; min-width: 250px;">
-                            <video id="qrVideo" style="width: 100%; max-width: 320px; border: 2px solid var(--cyan); border-radius: var(--radius-sm); box-shadow: var(--glow-cyan);"></video>
-                            <canvas id="qrCanvas" style="display: none;"></canvas>
-                            <div id="qrResult" style="color: var(--green); font-family: 'JetBrains Mono', monospace; background: var(--bg); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); min-height: 50px;">Waiting for QR...</div>
-                        </div>
+            <div class="dash-grid">
+                <!-- Visualizer Card -->
+                <div class="card" style="grid-column: span 12; padding: 0; min-height: 400px; overflow: hidden; position: relative;">
+                    <canvas id="meshVisualizerCanvas" style="width: 100%; height: 400px; display: block;"></canvas>
+                    <div id="vis-overlay" style="position: absolute; bottom: 15px; left: 15px; pointer-events: none; text-shadow: 0 0 5px #000;">
+                        <div id="vis-node-count" class="tag tag-cyan">Scanning for peers...</div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <h3 style="color:var(--cyan);margin-bottom:8px">Web Bluetooth Sensors (BLE)</h3>
-                    <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 20px;">
-                        Connect to nearby Bluetooth Low Energy (BLE) environmental sensors directly from the browser sandbox.
-                    </p>
-                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                <!-- Acoustic Controls -->
+                <div class="card" style="grid-column: span 6; ${!isSecureContext ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                    <h3 style="color:var(--primary);margin-bottom:12px">Acoustic Comm (MFSK Audio)</h3>
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                        <input type="text" id="meshTxInput" 
+                               style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; color: var(--text); outline: none; transition: border-color var(--transition); width: 100%;"
+                               onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='var(--glow-primary)'" 
+                               onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'"
+                               placeholder="Burst transmission mode...">
+                        <button class="btn btn-primary" onclick="MeshModule.transmitText()" style="min-width: 80px;">TX</button>
+                    </div>
+                    <div id="meshRxBox" style="height: 120px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'JetBrains Mono', monospace; color: var(--green); white-space: pre-wrap; overflow-y: auto; font-size: 11px;">Select "Record (RX)" to start listening...</div>
+                </div>
+
+                <!-- Optical Controls -->
+                <div class="card" style="grid-column: span 6;">
+                    <h3 style="color:var(--primary);margin-bottom:12px">Optical Sync (QR Bridge)</h3>
+                    <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                        <input type="text" id="qrTxInput" 
+                               style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; color: var(--text); outline: none; transition: border-color var(--transition); width: 100%;"
+                               onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='var(--glow-primary)'" 
+                               onblur="this.style.borderColor='var(--border)'; this.style.boxShadow='none'"
+                               placeholder="Optical payload encoder...">
+                        <button class="btn btn-primary" onclick="MeshModule.generateQR()" style="min-width: 100px;">Generate</button>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <button class="btn" style="flex:1" onclick="MeshModule.startScanQR()" id="btnScanQR">Scan Camera</button>
+                        <div id="qrCodeContainer" style="background: #fff; padding: 8px; border-radius: 4px; display: none; width: 80px; height: 80px;"></div>
+                    </div>
+                </div>
+
+                <!-- BLE Sensor Hub -->
+                <div class="card" style="grid-column: span 12;">
+                    <h3 style="color:var(--primary);margin-bottom:12px">BLE Environmental Sensors</h3>
+                    <div style="display: flex; gap: 12px;">
                         <button class="btn btn-primary" onclick="MeshModule.connectBLE()">Pair Sensor</button>
-                        <button class="btn" onclick="MeshModule.disconnectBLE()" id="btnDisconnectBLE" style="display:none; color: var(--red); border-color: rgba(255,68,102,0.3);">Disconnect</button>
+                        <div id="bleDataContainer" style="flex:1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-family: 'JetBrains Mono', monospace; color: var(--cyan); white-space: pre-wrap; font-size: 11px; min-height: 40px;">Ready for peripheral pairing...</div>
                     </div>
-                    <div id="bleDataContainer" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; font-family: 'JetBrains Mono', monospace; color: var(--cyan-dim); white-space: pre-wrap; min-height: 100px;">Waiting for sensor connection...</div>
                 </div>
             </div>
         `;
+
+        this.initVisualizer();
+    },
+
+    visualizer: null,
+    is3D: false,
+
+    toggleVisualizerMode() {
+        this.is3D = !this.is3D;
+        document.getElementById('btnMeshMode').textContent = this.is3D ? '🛰️ 3D VIEW' : '📡 2D VIEW';
+        if (this.visualizer) this.visualizer.setMode(this.is3D ? '3d' : '2d');
+    },
+
+    initVisualizer() {
+        const canvas = document.getElementById('meshVisualizerCanvas');
+        if (!canvas) return;
+        
+        // Lazy load visualizer logic to keep initial load fast
+        this.visualizer = new MeshVisualizer(canvas);
+        this.visualizer.start();
     },
 
     initAudio() {
@@ -211,7 +238,7 @@ const MeshModule = {
             btn.textContent = 'Record (RX)';
             btn.classList.remove('danger');
             btn.classList.add('primary');
-            spec.style.display = 'none';
+            if (spec) spec.style.display = 'none';
         } else {
             try {
                 this.initAudio();
@@ -230,7 +257,7 @@ const MeshModule = {
                 btn.textContent = 'Stop RX';
                 btn.classList.remove('primary');
                 btn.classList.add('danger');
-                spec.style.display = 'block';
+                if (spec) spec.style.display = 'block';
 
                 this.rxState = 'IDLE';
                 this.rxBuffer = [];
@@ -245,6 +272,7 @@ const MeshModule = {
 
     logRx(msg, append = false) {
         const box = document.getElementById('meshRxBox');
+        if (!box) return;
         if (append) {
             box.textContent += msg;
         } else {
@@ -277,11 +305,11 @@ const MeshModule = {
         if (maxVal > this.THRESHOLD) {
             const tone = this.closestTone(maxFreq);
             // UI visualizer
-            spec.style.background = `linear-gradient(90deg, #000 ${(maxFreq / 5000) * 100}%, #0f0 ${(maxFreq / 5000) * 100}%, #000 ${(maxFreq / 5000) * 100 + 2}%)`;
+            if (spec) spec.style.background = `linear-gradient(90deg, #000 ${(maxFreq / 5000) * 100}%, #0f0 ${(maxFreq / 5000) * 100}%, #000 ${(maxFreq / 5000) * 100 + 2}%)`;
 
             this.handleTone(tone);
         } else {
-            spec.style.background = '#000';
+            if (spec) spec.style.background = '#000';
             this.handleTone(null);
         }
 
@@ -308,7 +336,8 @@ const MeshModule = {
         if (tone === 'START') {
             this.rxState = 'CLOCK';
             this.rxBuffer = [];
-            document.getElementById('meshRxBox').textContent = '[Receiving] ';
+            const box = document.getElementById('meshRxBox');
+            if (box) box.textContent = '[Receiving] ';
             return;
         }
 
@@ -384,17 +413,22 @@ const MeshModule = {
 
         try {
             // Hide Generator
-            document.getElementById('qrCodeContainer').style.display = 'none';
+            const cont = document.getElementById('qrCodeContainer');
+            if (cont) cont.style.display = 'none';
 
             this.qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             const video = document.getElementById('qrVideo');
-            video.srcObject = this.qrStream;
-            video.setAttribute("playsinline", true); // required for iOS Safari
-            video.play();
+            if (video) {
+                video.srcObject = this.qrStream;
+                video.setAttribute("playsinline", true); // required for iOS Safari
+                video.play();
+            }
 
-            scannerContainer.style.display = 'flex';
-            btn.textContent = 'Stop Camera';
-            btn.classList.add('danger');
+            if (scannerContainer) scannerContainer.style.display = 'flex';
+            if (btn) {
+                btn.textContent = 'Stop Camera';
+                btn.classList.add('danger');
+            }
 
             this.qrScanLoop = requestAnimationFrame(() => this.tickScanQR());
         } catch (err) {
@@ -412,15 +446,18 @@ const MeshModule = {
         }
         cancelAnimationFrame(this.qrScanLoop);
 
-        scannerContainer.style.display = 'none';
-        btn.textContent = 'Scan Camera';
-        btn.classList.remove('danger');
+        if (scannerContainer) scannerContainer.style.display = 'none';
+        if (btn) {
+            btn.textContent = 'Scan Camera';
+            btn.classList.remove('danger');
+        }
     },
 
     tickScanQR() {
         if (!this.qrStream) return;
         const video = document.getElementById('qrVideo');
         const canvas = document.getElementById('qrCanvas');
+        if (!video || !canvas) return;
         const context = canvas.getContext("2d");
         const resEl = document.getElementById('qrResult');
 
@@ -435,9 +472,8 @@ const MeshModule = {
                 inversionAttempts: "dontInvert",
             });
 
-            if (code) {
+            if (code && resEl) {
                 resEl.textContent = "Data Received:\n" + code.data;
-                // Optional: visual feedback
                 resEl.style.color = "#0f0";
             }
         }
@@ -460,7 +496,8 @@ const MeshModule = {
         }
 
         try {
-            document.getElementById('bleDataContainer').textContent = "Scanning for devices...";
+            const box = document.getElementById('bleDataContainer');
+            if (box) box.textContent = "Scanning for devices...";
 
             // Allow any device to pair so we can inspect its generic services.
             this.bleDevice = await navigator.bluetooth.requestDevice({
@@ -497,12 +534,13 @@ const MeshModule = {
                                 await char.startNotifications();
                                 char.addEventListener('characteristicvaluechanged', (e) => {
                                     const val = new Uint8Array(e.target.value.buffer);
-                                    const box = document.getElementById('bleDataContainer');
-                                    let text = box.textContent;
+                                    const logBox = document.getElementById('bleDataContainer');
+                                    if (!logBox) return;
+                                    let text = logBox.textContent;
                                     if (text.includes('\n---Live Data---\n')) {
                                         text = text.split('\n---Live Data---\n')[0];
                                     }
-                                    box.textContent = text + '\n---Live Data---\n' +
+                                    logBox.textContent = text + '\n---Live Data---\n' +
                                         `[${char.uuid.substring(4, 8)}]: ${val.join(', ')}`;
                                 });
                             } catch (e) { }
@@ -511,11 +549,13 @@ const MeshModule = {
                 } catch (e) { }
             }
 
-            document.getElementById('bleDataContainer').textContent = output;
-            document.getElementById('btnDisconnectBLE').style.display = 'inline-block';
+            if (box) box.textContent = output;
+            const discBtn = document.getElementById('btnDisconnectBLE');
+            if (discBtn) discBtn.style.display = 'inline-block';
 
         } catch (error) {
-            document.getElementById('bleDataContainer').textContent = "Connection failed or cancelled.\n" + error;
+            const box = document.getElementById('bleDataContainer');
+            if (box) box.textContent = "Connection failed or cancelled.\n" + error;
         }
     },
 
@@ -526,11 +566,220 @@ const MeshModule = {
     },
 
     onBLEDisconnected() {
-        document.getElementById('bleDataContainer').textContent = "Sensor disconnected.";
-        document.getElementById('btnDisconnectBLE').style.display = 'none';
+        const box = document.getElementById('bleDataContainer');
+        if (box) box.textContent = "Sensor disconnected.";
+        const discBtn = document.getElementById('btnDisconnectBLE');
+        if (discBtn) discBtn.style.display = 'none';
         this.bleDevice = null;
         this.bleServer = null;
     }
 };
 
 window.MeshModule = MeshModule;
+
+class MeshVisualizer {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.nodes = [];
+        this.links = [];
+        this.mode = '2d'; // '2d' or '3d'
+        this.isRunning = false;
+        
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        if (!this.canvas.parentElement) return;
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height || 400;
+    }
+
+    setMode(mode) {
+        this.mode = mode;
+        // Reset node positions for fresh 3d perspective simulation
+        this.nodes.forEach(n => {
+            n.x = Math.random() * this.canvas.width;
+            n.y = Math.random() * this.canvas.height;
+        });
+    }
+
+    addNode(id, label, isMaster = false) {
+        if (this.nodes.find(n => n.id === id)) return;
+        this.nodes.push({
+            id,
+            label,
+            isMaster,
+            x: Math.random() * this.canvas.width,
+            y: Math.random() * this.canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            radius: isMaster ? 10 : 6,
+            traffic: []
+        });
+        
+        // Auto-link to master if it exists
+        if (!isMaster) {
+            const master = this.nodes.find(n => n.isMaster);
+            if (master) this.links.push({ source: id, target: master.id, strength: Math.random() * 0.8 + 0.2 });
+        }
+    }
+
+    async pollPeers() {
+        try {
+            const res = await authFetch(`${API}/api/peers`);
+            const data = await res.json();
+            
+            // 1. Identify "Self" (Master Hub)
+            const selfIp = data.self || '127.0.0.1';
+            const masterLabel = `MASTER HUB (${selfIp})`;
+            
+            if (!this.nodes.find(n => n.isMaster)) {
+                this.addNode('master', masterLabel, true);
+            } else {
+                this.nodes.find(n => n.isMaster).label = masterLabel;
+            }
+
+            // 2. Sync Peers
+            const currentPeerIps = data.peers.map(p => p.ip);
+            
+            // Add new peers
+            currentPeerIps.forEach(ip => {
+                if (!this.nodes.find(n => n.id === ip)) {
+                    this.addNode(ip, ip);
+                }
+            });
+
+            // Remove gone peers
+            this.nodes = this.nodes.filter(n => n.isMaster || currentPeerIps.includes(n.id));
+            this.links = this.links.filter(l => this.nodes.find(n => n.id === l.source) && this.nodes.find(n => n.id === l.target));
+
+        } catch (e) {
+            console.error('Peer poll failed:', e);
+        }
+    }
+
+    start() {
+        this.isRunning = true;
+        this.animate();
+        
+        // Start polling real data
+        this.pollPeers();
+        this._pollInterval = setInterval(() => this.pollPeers(), 5000);
+    }
+
+    stop() {
+        this.isRunning = false;
+        if (this._pollInterval) clearInterval(this._pollInterval);
+    }
+
+    animate() {
+        if (!this.isRunning) return;
+        
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Physics (Simplified Force-Directed)
+        this.nodes.forEach(n => {
+            n.x += n.vx;
+            n.y += n.vy;
+            
+            // Keep in bounds
+            const pad = 50;
+            if (n.x < pad || n.x > this.canvas.width - pad) n.vx *= -1;
+            if (n.y < pad || n.y > this.canvas.height - pad) n.vy *= -1;
+            
+            n.vx *= 0.98;
+            n.vy *= 0.98;
+            
+            n.vx += (Math.random() - 0.5) * 0.1;
+            n.vy += (Math.random() - 0.5) * 0.1;
+
+            // Attraction to center (master)
+            if (!n.isMaster) {
+                const master = this.nodes.find(node => node.isMaster);
+                if (master) {
+                    const dx = master.x - n.x;
+                    const dy = master.y - n.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 150) {
+                        n.vx += dx * 0.0001;
+                        n.vy += dy * 0.0001;
+                    }
+                }
+            }
+        });
+
+        // Draw Links
+        this.links.forEach(l => {
+            const s = this.nodes.find(n => n.id === l.source);
+            const t = this.nodes.find(n => n.id === l.target);
+            if (!s || !t) return;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(s.x, s.y);
+            this.ctx.lineTo(t.x, t.y);
+            this.ctx.strokeStyle = `rgba(255, 170, 0, ${l.strength * 0.3})`;
+            this.ctx.lineWidth = 1 + l.strength * 2;
+            this.ctx.setLineDash([5, 5]); // Tactical dashed lines
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Data flow visual
+            if (Math.random() < 0.03) s.traffic.push({ progress: 0, target: t });
+        });
+
+        // Draw Nodes
+        this.nodes.forEach(n => {
+            // Glow
+            this.ctx.beginPath();
+            const grad = this.ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius * 3);
+            grad.addColorStop(0, n.isMaster ? 'rgba(255, 170, 0, 0.4)' : 'rgba(255, 170, 0, 0.1)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            this.ctx.fillStyle = grad;
+            this.ctx.arc(n.x, n.y, n.radius * 3, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Node Core
+            this.ctx.beginPath();
+            this.ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+            this.ctx.fillStyle = n.isMaster ? 'var(--primary)' : 'rgba(255, 170, 0, 0.6)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.stroke();
+
+            // Label
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = 'bold 11px "JetBrains Mono"';
+            this.ctx.shadowColor = '#000';
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillText(n.label, n.x + 15, n.y + 5);
+            this.ctx.shadowBlur = 0;
+            
+            // Animate traffic particles
+            n.traffic = n.traffic.filter(p => {
+                p.progress += 0.015;
+                const px = n.x + (p.target.x - n.x) * p.progress;
+                const py = n.y + (p.target.y - n.y) * p.progress;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+                this.ctx.fillStyle = 'var(--primary)';
+                this.ctx.fill();
+                
+                return p.progress < 1;
+            });
+        });
+
+        // Update UI status overlay
+        const info = document.getElementById('vis-node-count');
+        if (info) {
+            const peerCount = this.nodes.filter(n => !n.isMaster).length;
+            info.textContent = `${peerCount} PEERS DISCOVERED | VIEW: ${this.mode.toUpperCase()}`;
+        }
+
+        requestAnimationFrame(() => this.animate());
+    }
+}

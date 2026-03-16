@@ -18,7 +18,7 @@ const ChatModule = {
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <span id="chatUserCount" class="tag tag-cyan">0 online</span>
-                    <button class="btn" style="background:var(--red);border-color:var(--red);color:white" onclick="ChatModule.sendEmergency()">🚨 SOS</button>
+                    <button class="btn" style="background:var(--red);border-color:var(--red);color:white" onclick="ChatModule.sendEmergency()">SOS</button>
                 </div>
             </div>
             <div class="chat-container">

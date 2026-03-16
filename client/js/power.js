@@ -14,10 +14,10 @@ const PowerModule = {
                 <button class="btn" id="lowPowerBtn" onclick="PowerModule.toggleLowPower()">Low Power Mode</button>
             </div>
             <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-                <div class="card"><h3 style="color:var(--cyan);margin-bottom:12px">🔋 Battery</h3><div id="battInfo">Loading...</div></div>
-                <div class="card"><h3 style="color:var(--cyan);margin-bottom:12px">💾 Memory & CPU</h3><div id="memInfo">Loading...</div></div>
-                <div class="card"><h3 style="color:var(--cyan);margin-bottom:12px">💿 Storage</h3><div id="storageInfo">Loading...</div></div>
-                <div class="card"><h3 style="color:var(--cyan);margin-bottom:12px">🔧 Services</h3><div id="svcInfo">Loading...</div></div>
+                <div class="card"><h3 style="color:var(--primary);margin-bottom:12px">🔋 Battery</h3><div id="battInfo">Loading...</div></div>
+                <div class="card"><h3 style="color:var(--primary);margin-bottom:12px">💾 Memory & CPU</h3><div id="memInfo">Loading...</div></div>
+                <div class="card"><h3 style="color:var(--primary);margin-bottom:12px">💿 Storage</h3><div id="storageInfo">Loading...</div></div>
+                <div class="card"><h3 style="color:var(--primary);margin-bottom:12px">🔧 Services</h3><div id="svcInfo">Loading...</div></div>
             </div>`;
         await this.refresh();
         this._interval = setInterval(() => this.refresh(), 10000);
@@ -48,7 +48,7 @@ const PowerModule = {
             const mp = d.memory.percent;
             document.getElementById('memInfo').innerHTML = `
                 <div style="font-size:13px;margin-bottom:4px">RAM: ${mp}%</div>
-                <div class="power-bar"><div class="power-bar-fill" style="width:${mp}%;background:${mp > 80 ? 'var(--red)' : 'var(--cyan)'}"></div></div>
+                <div class="power-bar"><div class="power-bar-fill" style="width:${mp}%;background:${mp > 80 ? 'var(--red)' : 'var(--primary)'}"></div></div>
                 <div style="font-size:12px;color:var(--text-dim);margin-top:4px">${(d.memory.used / 1073741824).toFixed(1)}GB / ${(d.memory.total / 1073741824).toFixed(1)}GB</div>
                 <div style="margin-top:12px;font-size:13px">CPUs: ${d.cpu.count} · Usage: ${d.cpu.usagePercent}%</div>
                 <div style="font-size:12px;color:var(--text-dim)">Uptime: ${Math.floor(d.uptime / 3600)}h ${Math.floor((d.uptime % 3600) / 60)}m</div>`;
@@ -63,7 +63,7 @@ const PowerModule = {
             const pct = parseInt(d.percent) || 0;
             document.getElementById('storageInfo').innerHTML = `
                 <div style="font-size:13px;margin-bottom:4px">Used: ${d.percent}</div>
-                <div class="power-bar"><div class="power-bar-fill" style="width:${pct}%;background:${pct > 85 ? 'var(--red)' : 'var(--cyan)'}"></div></div>
+                <div class="power-bar"><div class="power-bar-fill" style="width:${pct}%;background:${pct > 85 ? 'var(--red)' : 'var(--primary)'}"></div></div>
                 <div style="font-size:12px;color:var(--text-dim);margin-top:4px">${d.used} / ${d.total} (${d.free} free)</div>`;
         } catch { document.getElementById('storageInfo').innerHTML = '<p style="color:var(--text-dim)">Unavailable</p>'; }
     },

@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════
 
 const API = window.location.origin;
-let currentModule = 'music';
+let currentModule = 'dashboard';
 let sidebarCollapsed = false;
 
 window.escapeHtml = function (text) {
@@ -150,7 +150,7 @@ const Auth = {
         document.getElementById('userName').textContent = Auth.user?.username || '';
 
         // Initialize first module
-        switchModule('music');
+        switchModule('dashboard');
         
         // Start background tasks
         checkConnection();
@@ -199,6 +199,7 @@ function switchModule(name) {
     if (!modEl.dataset.loaded) {
         modEl.dataset.loaded = '1';
         switch (name) {
+            case 'dashboard': DashboardModule.init(); break;
             case 'music': MusicModule.init(); break;
             case 'photos': PhotosModule.init(); break;
             case 'videos': VideosModule.init(); break;

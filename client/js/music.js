@@ -16,7 +16,7 @@ const MusicModule = {
                     <div class="module-subtitle" id="musicCount">Loading library...</div>
                 </div>
                 <div class="store-tabs">
-                    <button class="btn btn-outline" onclick="MusicModule.resync()" id="resyncMusicBtn">Resync Library</button>
+                    <button class="btn btn-outline" onclick="MusicModule.resync()" id="resyncMusicBtn">Resync</button>
                     <div class="search-box">
                         <span class="search-icon">🔍</span>
                         <input type="text" placeholder="Search tracks, artists, albums..." 
