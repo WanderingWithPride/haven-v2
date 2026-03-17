@@ -6,17 +6,17 @@ A **self-hosted, offline-first communication and survival platform** that transf
 
 When the grid goes down, CyberDeck keeps you connected.
 
-## 📡 Communication & Networking
+## Communication & Networking
 
 CyberDeck is built around a multi-layered communication stack that works in any connectivity scenario from full Wi-Fi to complete radio silence.
 
 | Layer | Module | How It Works |
 |-------|--------|-------------|
-| **Real-time** | 💬 **LAN Chat** | WebSocket-based group chat across all devices on the same network. Zero config, instant join. |
-| **Store-and-Forward** | 📡 **DTN Engine** | Delay-Tolerant Networking with automatic **Epidemic Sync** via UDP beacons + mDNS. Devices exchange packets in the background whenever they come within Wi-Fi range, carry data across air-gaps like a physical courier. |
-| **Direct Transfer** | 📁 **WebRTC P2P** | Browser-to-browser file transfers over LAN. No server storage touched. |
-| **Air-Gapped** | 🕸️ **Mesh Network** | Transmit data with no network at all: **Acoustic MFSK** (audio frequencies), **Optical QR** (camera), or **BLE** (Bluetooth Low Energy). |
-| **Content Sharing** | 📦 **LAN Content Sync** | Browse and pull downloaded datasets, models, and knowledge packs directly from nearby CyberDeck nodes over the LAN. License metadata travels with the content. |
+| **Real-time** | **LAN Chat** | WebSocket-based group chat across all devices on the same network. Zero config, instant join. |
+| **Store-and-Forward** | **DTN Engine** | Delay-Tolerant Networking with automatic **Epidemic Sync** via UDP beacons + mDNS. Devices exchange packets in the background whenever they come within Wi-Fi range, carry data across air-gaps like a physical courier. |
+| **Direct Transfer** | **WebRTC P2P** | Browser-to-browser file transfers over LAN. No server storage touched. |
+| **Air-Gapped** | **Mesh Network** | Transmit data with no network at all: **Acoustic MFSK** (audio frequencies), **Optical QR** (camera), or **BLE** (Bluetooth Low Energy). |
+| **Content Sharing** | **LAN Content Sync** | Browse and pull downloaded datasets, models, and knowledge packs directly from nearby CyberDeck nodes over the LAN. License metadata travels with the content. |
 
 ### How Devices Communicate
 
@@ -34,19 +34,19 @@ CyberDeck A                          CyberDeck B
 
 Nodes discover each other automatically via **mDNS** and **UDP Subnet Beacons** (bypasses Android hotspot restrictions). When two CyberDecks come within range, they perform TLS-encrypted background sync - no user action needed.
 
-## 🧠 Knowledge & AI (Offline)
+## Knowledge & AI (Offline)
 
 | Module | Description |
 |--------|-------------|
-| 🤖 **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses, and **Model List Refresh**. |
-| 📚 **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
-| 🗺️ **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Tile Downloader**. |
-| 📡 **Nearby** | Auto-discover other CyberDecks on your LAN and **pull content/models offline** from them via specialized P2P protocols. |
-| 📖 **Ebooks** | EPUB reader and PDF viewer with saved reading progress. |
-| 🛡️ **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation). |
-| 🛡️ **Security Hardened** | HMAC-signed file IDs, DTN resource quotas, Vault AES-256-GCM, and strictly sanitized UI. |
+| **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses, and **Model List Refresh**. |
+| **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
+| **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Tile Downloader**. |
+| **Nearby** | Auto-discover other CyberDecks on your LAN and **pull content/models offline** from them via specialized P2P protocols. |
+| **Ebooks** | EPUB reader and PDF viewer with saved reading progress. |
+| **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation). |
+| **Security Hardened** | HMAC-signed file IDs, DTN resource quotas, Vault AES-256-GCM, and strictly sanitized UI. |
 
-## 📦 Content Store & Distribution
+## Content Store & Distribution
 
 CyberDeck includes a built-in store for downloading open-source knowledge packs, AI models, and datasets:
 
@@ -59,24 +59,24 @@ CyberDeck includes a built-in store for downloading open-source knowledge packs,
 - **Attribution Compliance** - all content clearly labeled with license, source, and distributor
 
 
-## 🎵 Media & Storage
+## Media & Storage
 
 | Module | Description |
 |--------|-------------|
-| 🎵 **Music** | Stream FLAC/MP3/OGG with metadata, album art, visualizer, and persistent queue. |
-| 📸 **Photos** | Photo gallery with lazy thumbnails, date grouping, EXIF data, and lightbox viewer. |
-| 🎬 **Videos** | Stream videos with range-request seeking and fullscreen support. |
-| 🔒 **Vault** | AES-256-GCM encrypted storage. Zero-knowledge - encryption happens in-browser. |
+| **Music** | Stream FLAC/MP3/OGG with metadata, album art, visualizer, and persistent queue. |
+| **Photos** | Photo gallery with lazy thumbnails, date grouping, EXIF data, and lightbox viewer. |
+| **Videos** | Stream videos with range-request seeking and fullscreen support. |
+| **Vault** | AES-256-GCM encrypted storage. Zero-knowledge - encryption happens in-browser. |
 
-## 🛠️ Utilities
+## Utilities
 
 | Module | Description |
 |--------|-------------|
-| 🧰 **Tools** | Compass, Calculator, Unit Converter, Morse Code generator, Flashlight, Coordinates. |
-| 🔋 **Power** | System monitor: CPU load, RAM, storage, battery, temperature, service status. |
-| 📱 **PWA** | Progressive Web App, install to home screen, cache UI shell for instant offline loading. |
+| **Tools** | Compass, Calculator, Unit Converter, Morse Code generator, Flashlight, Coordinates. |
+| **Power** | System monitor: CPU load, RAM, storage, battery, temperature, service status. |
+| **PWA** | Progressive Web App, install to home screen, cache UI shell for instant offline loading. |
 
-## 🚀 Quick Start
+## Quick Start
 
 CyberDeck works on any device running Node.js. Choose your platform:
 
@@ -135,7 +135,7 @@ The server displays your LAN IP. Open it on any device on the same network:
 
 *(Default credentials: `admin` / `cyberdeck` - change immediately in Admin Panel).*
 
-## 🔌 Admin Panel (`/admin`)
+## Admin Panel (`/admin`)
 
 - **Security**: Change access credentials and rotate HMAC secrets
 - **Services**: Start/stop Ollama and Kiwix
@@ -143,7 +143,7 @@ The server displays your LAN IP. Open it on any device on the same network:
 - **Configuration**: Customize directory paths
 - **Metrics**: Real-time performance graphing
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
 Host Device (Termux/PC)                 Client (Any Browser)
@@ -159,13 +159,13 @@ Host Device (Termux/PC)                 Client (Any Browser)
 
 Built with Vanilla JavaScript, HTML, and CSS - no heavy frameworks. Optimized for maximum performance on low-end devices and rapid loading over local networks.
 
-## 📋 Requirements
+## Requirements
 - **Host**: Node.js 18+ (Android via Termux, Linux, Windows, macOS)
 - **Client**: Any modern web browser
 - **Hardware**: Any smartphone from the last 10 years. For **AI Chat**, 6GB+ RAM (8GB recommended)
 - **Network**: Wi-Fi router or Mobile Hotspot (no internet required after initial setup)
 
-## 🔧 Third Party Services
+## Third Party Services
 
 CyberDeck integrates with optional external software:
 
@@ -174,7 +174,7 @@ CyberDeck integrates with optional external software:
 
 *These services are installed separately and licensed under their respective open-source licenses.*
 
-## 🛡️ Security Audit & Hardening
+## Security Audit & Hardening
 
 CyberDeck has undergone a comprehensive multi-phase security audit to ensure a robust defense-in-depth posture:
 
@@ -186,7 +186,7 @@ CyberDeck has undergone a comprehensive multi-phase security audit to ensure a r
 - **API Security**: Forced same-origin CORS, rate-limited authentication, and WebSocket token verification.
 - **P2P TLS Off-Grid Design**: Peer-to-peer syncing uses self-signed certificates and bypasses strict CA validation (`rejectUnauthorized: false`). Because CyberDeck operates completely offline without access to public Certificate Authorities, this is an intentional design tradeoff. The SSRF filter bounds all peer queries exclusively to local, private LAN IPs, minimizing any MITM exposure to your direct physical network.
 
-## 📄 License
+## License
 
 MIT License. Build, mod, and survive.
 
