@@ -17,3 +17,7 @@ CyberDeckClient/
 .env.*
 .DS_Store
 Thumbs.db
+
+# Android Client
+*.jks
+*.apk
