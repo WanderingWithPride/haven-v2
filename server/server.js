@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const { requireAuth, requireAdmin } = require('./utils/auth');
 const meshLogger = require('./utils/meshLogger');
+const rag = require('./utils/rag');
 
 // Data home resolution for persistence
 const dataHome = process.env.CYBERDECK_DATA_HOME;
@@ -107,13 +108,15 @@ app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.use('/api/auth', require('./routes/auth')(config));
 
 // Load routes
+rag.init(config);
 const dtnRoutes = require('./routes/dtn')(config);
+const llmRoutes = require('./routes/llm')(config, rag);
 
 // Protected API Routes (require login)
 app.use('/api/music', requireAuth, require('./routes/music')(config));
 app.use('/api/photos', requireAuth, require('./routes/photos')(config));
 app.use('/api/videos', requireAuth, require('./routes/videos')(config));
-app.use('/api/llm', requireAuth, require('./routes/llm')(config));
+app.use('/api/llm', requireAuth, llmRoutes);
 app.use('/api/wiki', requireAuth, require('./routes/wiki')(config));
 app.use('/api/maps', requireAuth, require('./routes/maps')(config));
 app.use('/api/ebooks', requireAuth, require('./routes/ebooks')(config));
@@ -206,36 +209,46 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
             res.json({ success: true, message: 'Ollama started' });
         });
     } else if (name === 'kiwix') {
-        // Find ZIM file: check config first, then auto-detect in downloads
-        let zimFile = config.services.kiwix.zimFile;
-        if (!zimFile) {
-            const dlDir = path.join(__dirname, 'downloads');
-            try {
-                if (fs.existsSync(dlDir)) {
-                    const zims = fs.readdirSync(dlDir).filter(f => f.endsWith('.zim'));
-                    if (zims.length > 0) zimFile = path.join(dlDir, zims[0]);
-                }
-            } catch (e) { }
+        const dlDir = path.join(__dirname, 'downloads');
+        let zimFiles = [];
+
+        // Check downloads directory for all zims
+        try {
+            if (fs.existsSync(dlDir)) {
+                zimFiles = fs.readdirSync(dlDir)
+                    .filter(f => f.endsWith('.zim'))
+                    .map(f => path.join(dlDir, f));
+            }
+        } catch (e) { }
+
+        // Also add the configured ZIM if it exists and isn't already included
+        if (config.services.kiwix.zimFile && fs.existsSync(config.services.kiwix.zimFile)) {
+            if (!zimFiles.includes(config.services.kiwix.zimFile)) {
+                zimFiles.push(config.services.kiwix.zimFile);
+            }
         }
 
-        if (!zimFile) {
+        if (zimFiles.length === 0) {
             return res.status(400).json({
-                error: 'No ZIM file found. Either download one from Content Store or set the path in Configuration > Kiwix ZIM File'
+                error: 'No ZIM files found. Download one from Content Store or set the path in Configuration.'
             });
         }
 
         const isWin = process.platform === 'win32';
         const localExePath = path.join(__dirname, 'kiwix-serve.exe');
         let kiwixCmd = 'kiwix-serve';
+        
+        // Build the arguments string
+        const port = config.services.kiwix.port || 8889;
+        const argsStr = zimFiles.map(z => `"${z}"`).join(' ');
 
         // Check if kiwix-serve is available locally or globally
         let cmdCheck = isWin ? `where kiwix-serve` : `which kiwix-serve`;
         if (isWin && fs.existsSync(localExePath)) {
             // Local fallback for Windows
-            const port = config.services.kiwix.port || 8889;
-            exec(`start /b kiwix-serve.exe --port=${port} "${zimFile}"`, { cwd: __dirname }, (err) => {
+            exec(`start /b kiwix-serve.exe --port=${port} ${argsStr}`, { cwd: __dirname }, (err) => {
                 if (err) return res.status(500).json({ error: 'Internal server error' });
-                return res.json({ success: true, message: `Kiwix started on port ${port}` });
+                return res.json({ success: true, message: `Kiwix started on port ${port} with ${zimFiles.length} dataset(s)` });
             });
         } else {
             exec(cmdCheck, (checkErr) => {
@@ -247,18 +260,17 @@ app.post('/api/services/:name/start', requireAdmin, (req, res) => {
                                 error: 'kiwix-serve not found. Install it: pkg install kiwix-tools or flatpak/choco depending on your OS'
                             });
                         }
-                        const port = config.services.kiwix.port || 8889;
-                        exec(`kiwix-serve --port=${port} "${zimFile}" &`, (err) => {
+                        // Installed successfully, try to run
+                        exec(`kiwix-serve --port=${port} ${argsStr} &`, (err) => {
                             if (err) return res.status(500).json({ error: 'Internal server error' });
-                            res.json({ success: true, message: `Kiwix started on port ${port}` });
+                            return res.json({ success: true, message: `Kiwix installed and started with ${zimFiles.length} dataset(s)` });
                         });
                     });
                 } else if (!checkErr) {
-                    const port = config.services.kiwix.port || 8889;
-                    const startCmd = isWin ? `start /b kiwix-serve.exe --port=${port} "${zimFile}"` : `kiwix-serve --port=${port} "${zimFile}" &`;
-                    exec(startCmd, (err) => {
+                    const runCmd = isWin ? `start /b kiwix-serve --port=${port} ${argsStr}` : `kiwix-serve --port=${port} ${argsStr} &`;
+                    exec(runCmd, { cwd: __dirname }, (err) => {
                         if (err) return res.status(500).json({ error: 'Internal server error' });
-                        res.json({ success: true, message: `Kiwix started on port ${port}` });
+                        return res.json({ success: true, message: `Kiwix started correctly on port ${port} with ${zimFiles.length} dataset(s)` });
                     });
                 } else {
                     res.status(400).json({ error: 'kiwix-serve not found in PATH' });
@@ -630,9 +642,7 @@ pemsPromise.then(pems => {
     }, 15000);
 
     console.log('');
-    console.log('\x1b[36m  ╔═══════════════════════════════════════╗\x1b[0m');
-    console.log('\x1b[36m  ║\x1b[0m \x1b[34mCyberDeck Server Running\x1b[0m \x1b[36m        ║\x1b[0m');
-    console.log('\x1b[36m  ╚═══════════════════════════════════════╝\x1b[0m');
+    console.log('\x1b[36m  CyberDeck Server Running\x1b[0m');
     console.log('');
 
     const bootIp = getLanIP();

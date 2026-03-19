@@ -39,9 +39,10 @@ Nodes discover each other automatically via **mDNS** and **UDP Subnet Beacons** 
 | Module | Description |
 |--------|-------------|
 | **AI Chat** | Chat with local LLMs (Llama 3, Phi-3, Mistral) via Ollama. 100% offline, streaming responses, and **Model List Refresh**. |
-| **Wikipedia** | Offline encyclopedia via Kiwix. Search and read articles without internet. |
+| **Wikipedia** | Offline encyclopedia via Kiwix with **Dynamic ZIM Initialization**. |
 | **Maps** | Offline/online maps via Leaflet with geolocation tracking and **Offline Tile Downloader**. |
 | **Nearby** | Auto-discover other CyberDecks on your LAN and **pull content/models offline** from them via specialized P2P protocols. |
+| **RAG Module** | Augmented AI Chat with local knowledge retrieval from ZIM datasets. |
 | **Ebooks** | EPUB reader and PDF viewer with saved reading progress. |
 | **Survival** | Built-in offline survival guides (Water, Fire, Shelter, First Aid, Navigation). |
 | **Security Hardened** | HMAC-signed file IDs, DTN resource quotas, Vault AES-256-GCM, and strictly sanitized UI. |
@@ -75,6 +76,7 @@ CyberDeck includes a built-in store for downloading open-source knowledge packs,
 | **Tools** | Compass, Calculator, Unit Converter, Morse Code generator, Flashlight, Coordinates. |
 | **Power** | System monitor: CPU load, RAM, storage, battery, temperature, service status. |
 | **PWA** | Progressive Web App, install to home screen, cache UI shell for instant offline loading. |
+| **Mobile Sync** | Fully responsive UI with off-canvas navigation, optimized for one-handed use on smartphones. |
 
 ## Quick Start
 
@@ -110,6 +112,7 @@ For a standalone experience with a dedicated window and taskbar icon:
 
 1. Follow the **Windows (PowerShell)** setup above first.
 2. From the root `CyberDeck` directory, install Electron dependencies (if command fails, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first):
+
    ```powershell
    npm install
    ```
@@ -138,10 +141,12 @@ The server displays your LAN IP. Open it on any device on the same network:
 ## Admin Panel (`/admin`)
 
 - **Security**: Change access credentials and rotate HMAC secrets
-- **Services**: Start/stop Ollama and Kiwix
-- **Library Scanning**: Force rescan media directories
-- **Configuration**: Customize directory paths
-- **Metrics**: Real-time performance graphing
+- **Services**: Start/stop Ollama and Kiwix with **Dynamic ZIM Initialization**
+- **Download Manager**: Live progress bars with **Pause/Resume/Cancel/Delete** controls
+- **Robustness**: Automated **Windows EBUSY lock release** and process termination on deletion
+- **Library Scanning**: Force rescan media directories and aggressive directory sweeping
+- **Configuration**: Customize directory paths and offline Ollama model deletions
+- **Metrics**: Real-time performance graphing and background DOM sync for persistent progress tracking
 
 ## Architecture
 
@@ -149,15 +154,15 @@ The server displays your LAN IP. Open it on any device on the same network:
 Host Device (Termux/PC)                 Client (Any Browser)
 ┌──────────────────────┐               ┌──────────────────────┐
 │  Node.js Server      │               │  CyberDeck SPA       │
-│  ├─ Express API      │◄─── Wi-Fi ───►│  ├─ Vanilla JS/CSS   │
-│  ├─ DTN Engine       │   (Offline)   │  ├─ WebSockets       │
-│  ├─ Content Store    │               │  ├─ WebRTC P2P       │
-│  ├─ Ollama (LLMs)    │               │  ├─ Crypto API       │
+│  ├─ Express API      │◄─── Wi-Fi ───►│  ├─ Tactical UI      │
+│  ├─ DTN Engine       │   (Offline)   │  ├─ RAG Module       │
+│  ├─ Content Store    │               │  ├─ WebSockets       │
+│  ├─ Ollama (LLMs)    │               │  ├─ WebRTC P2P       │
 │  └─ Kiwix (Wiki)     │               │  └─ Service Workers  │
 └──────────────────────┘               └──────────────────────┘
 ```
 
-Built with Vanilla JavaScript, HTML, and CSS - no heavy frameworks. Optimized for maximum performance on low-end devices and rapid loading over local networks.
+Built with Vanilla JavaScript, HTML, and CSS - no heavy frameworks. Optimized for maximum performance on low-end devices, fully mobile-responsive, and featuring a high-contrast **Tactical Amber** aesthetic.
 
 ## Requirements
 - **Host**: Node.js 18+ (Android via Termux, Linux, Windows, macOS)
@@ -179,10 +184,11 @@ CyberDeck integrates with optional external software:
 CyberDeck has undergone a comprehensive multi-phase security audit to ensure a robust defense-in-depth posture:
 
 - **Logic Hardening**: Strict path normalization and validation to prevent Path Traversal.
-- **Data Integrity**: HMAC-signed File IDs prevent predictable access and tampering.
-- **Resource Protection**: DTN Spool quotas (max 500 packets / 2MB per payload) prevent disk exhaustion attacks.
+- **Data Integrity**: HMAC-signed File IDs and aggressive directory sweeping to purge orphaned cache fragments.
+- **Process Management**: Automatic termination of active background threads on deletion to prevent resource leaks.
+- **Windows Optimization**: Explicit **EBUSY lock release** before unlinking aborted files.
 - **Encryption**: AES-256-GCM Vault with per-vault random salts and server-side session management.
-- **UI Sanitization**: Comprehensive HTML escaping across all interactive modules to eliminate DOM XSS.
+- **UI Sanitization**: Comprehensive HTML escaping and removal of legacy dependencies (Bootstrap) for a pure CSS Tactical Amber implementation.
 - **API Security**: Forced same-origin CORS, rate-limited authentication, and WebSocket token verification.
 - **P2P TLS Off-Grid Design**: Peer-to-peer syncing uses self-signed certificates and bypasses strict CA validation (`rejectUnauthorized: false`). Because CyberDeck operates completely offline without access to public Certificate Authorities, this is an intentional design tradeoff. The SSRF filter bounds all peer queries exclusively to local, private LAN IPs, minimizing any MITM exposure to your direct physical network.
 

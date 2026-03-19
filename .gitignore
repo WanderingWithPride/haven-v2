@@ -12,3 +12,7 @@ server/dtn_spool/
 CyberDeck-Website/
 dist/
 node_modules/
+.env
+.env.*
+.DS_Store
+Thumbs.db

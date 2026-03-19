@@ -31,7 +31,8 @@ const StoreModule = {
         tabs.forEach(t => {
             const btn = document.getElementById(`tab-${t}`);
             if (t === tab) {
-                btn.className = 'btn btn-primary';
+                btn.className = 'btn primary';
+                btn.style.background = '';
             } else {
                 btn.className = 'btn';
                 btn.style.background = 'var(--surface2)';
@@ -112,7 +113,7 @@ const StoreModule = {
                             <div class="store-btn-group">
                                 <button class="btn btn-primary" id="btn-${item.id}"
                                     onclick="StoreModule.downloadItem('${item.id}')">
-                                    ${item.type === 'manual' ? 'INFO' : 'DOWNLOAD'}
+                                    ${item.type === 'manual' ? 'INFO' : (window.currentUser?.role === 'admin' ? 'DOWNLOAD' : 'REQUEST')}
                                 </button>
                                 <button class="btn" id="revoke-${item.id}" style="display:none;"
                                     onclick="StoreModule.pauseDownload('${item.id}')">PAUSE</button>
@@ -120,8 +121,6 @@ const StoreModule = {
                                     onclick="StoreModule.resumeDownload('${item.id}')">RESUME</button>
                                 <button class="btn btn-delete" id="cancel-${item.id}" style="display:none;"
                                     onclick="StoreModule.cancelDownload('${item.id}')">CANCEL</button>
-                                <button class="btn btn-delete" id="delete-${item.id}" style="display:none;"
-                                    onclick="StoreModule.deleteItem('${item.id}')">DELETE</button>
                             </div>
                         </div>
                     </div>`;
@@ -165,12 +164,29 @@ const StoreModule = {
                     ? (f.sizeBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB'
                     : (f.sizeBytes / 1024 / 1024).toFixed(1) + ' MB';
 
+                // For ZIM files, we usually want to use the pattern key if available, 
+                // but the backend robust delete now handles direct filenames too.
+                const deleteId = f.id; 
+
+                let progressHtml = '';
+                if (f.isDownloading) {
+                    progressHtml = `
+                        <div class="store-progress" id="prog-${f.id}" style="display:flex; margin-top:6px; background:transparent; padding:0; border:none;">
+                            <div class="power-bar" style="margin-right:10px; width:100px; height:8px;"><div class="power-bar-fill" id="fill-${f.id}" style="width:${f.progress}%"></div></div>
+                            <span class="store-prog-text" id="text-${f.id}" style="font-size:10px">${f.status === 'paused' ? 'Paused' : f.progress + '%'}</span>
+                        </div>
+                    `;
+                }
+
                 html += `
                     <tr>
                         <td style="font-weight: bold;">${icon} ${escapeHtml(f.name)}</td>
                         <td><span class="store-type-tag">${f.type.toUpperCase()}</span></td>
                         <td style="font-family: 'JetBrains Mono', monospace;">${sizeStr}</td>
-                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); word-break: break-all;">${escapeHtml(f.relativePath || f.name)}</td>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); word-break: break-all;">
+                            ${escapeHtml(f.relativePath || f.name)}
+                            ${progressHtml}
+                        </td>
                     </tr>
                 `;
             });
@@ -211,12 +227,15 @@ const StoreModule = {
                     const prog = document.getElementById(`prog-${id}`);
                     const fill = document.getElementById(`fill-${id}`);
                     const text = document.getElementById(`text-${id}`);
-                    const deleteBtn = document.getElementById(`delete-${id}`);
                     if (btn) { btn.textContent = 'DONE'; btn.disabled = true; }
                     if (prog) prog.style.display = 'none';
                     if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--border)'; }
                     if (text) text.textContent = 'Downloaded';
-                    if (deleteBtn) deleteBtn.style.display = 'block';
+                } else if (info.status === 'requested') {
+                    const btn = document.getElementById(`btn-${id}`);
+                    if (btn) { btn.textContent = 'REQUESTED'; btn.disabled = true; }
+                } else if (info.status && info.status !== 'idle' && info.status !== 'failed' && info.status !== 'cancelled') {
+                    this.pollProgress(id);
                 }
             }
         } catch (e) { /* silently fail */ }
@@ -309,48 +328,30 @@ const StoreModule = {
         }
     },
 
-    async deleteItem(id) {
-        if (!confirm('Delete this downloaded content? This cannot be undone.')) return;
-        try {
-            const res = await authFetch(`${API}/api/store/delete/${id}`, { method: 'DELETE' });
-            const data = await res.json();
-            const btn = document.getElementById(`btn-${id}`);
-            const deleteBtn = document.getElementById(`delete-${id}`);
-            const prog = document.getElementById(`prog-${id}`);
-            const fill = document.getElementById(`fill-${id}`);
-            const text = document.getElementById(`text-${id}`);
-            if (btn) { btn.textContent = '⬇ Download'; btn.disabled = false; }
-            if (deleteBtn) deleteBtn.style.display = 'none';
-            if (fill) { fill.style.width = '0%'; fill.style.background = ''; }
-            if (text) text.textContent = '';
-            if (prog) prog.style.display = 'none';
-            alert(data.message || 'Deleted successfully');
-        } catch (e) {
-            alert('Delete failed: ' + e.message);
-        }
-    },
-
     async pollProgress(id) {
-        const fill = document.getElementById(`fill-${id}`);
-        const text = document.getElementById(`text-${id}`);
-        const btn = document.getElementById(`btn-${id}`);
-        const cancelBtn = document.getElementById(`cancel-${id}`);
-        const deleteBtn = document.getElementById(`delete-${id}`);
-        const pauseBtn = document.getElementById(`revoke-${id}`);
-        const resumeBtn = document.getElementById(`resume-${id}`);
         const mdItemType = this.itemConfigs[id]?.type;
 
         const check = async () => {
+            const fill = document.getElementById(`fill-${id}`);
+            const text = document.getElementById(`text-${id}`);
+            const btn = document.getElementById(`btn-${id}`);
+            const cancelBtn = document.getElementById(`cancel-${id}`);
+            const pauseBtn = document.getElementById(`revoke-${id}`);
+            const resumeBtn = document.getElementById(`resume-${id}`);
+            const prog = document.getElementById(`prog-${id}`);
+
             try {
                 const res = await authFetch(`${API}/api/store/progress/${id}`);
                 const data = await res.json();
 
                 if (data.status === 'discovering') {
-                    text.textContent = 'Finding...';
-                    btn.textContent = '🔍 Finding...';
+                    if (prog) prog.style.display = 'flex';
+                    if (text) text.textContent = 'Finding...';
+                    if (btn) btn.textContent = '🔍 Finding...';
                     if (cancelBtn) cancelBtn.style.display = 'inline-block';
                     setTimeout(check, 2000);
                 } else if (data.status === 'downloading') {
+                    if (prog) prog.style.display = 'flex';
                     fill.style.width = data.progress + '%';
                     fill.style.background = 'var(--primary)';
                     text.textContent = data.progress + '%';
@@ -359,7 +360,17 @@ const StoreModule = {
                     if (pauseBtn && mdItemType === 'zim') pauseBtn.style.display = 'block';
                     if (resumeBtn) resumeBtn.style.display = 'none';
                     setTimeout(check, 2000);
+                } else if (data.status === 'verifying') {
+                    if (prog) prog.style.display = 'flex';
+                    fill.style.width = '100%';
+                    fill.style.background = 'var(--cyan)';
+                    text.textContent = 'Verifying...';
+                    btn.textContent = 'Verifying...';
+                    if (cancelBtn) cancelBtn.style.display = 'none';
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    setTimeout(check, 2000);
                 } else if (data.status === 'paused') {
+                    if (prog) prog.style.display = 'flex';
                     fill.style.background = 'var(--surface2)';
                     fill.style.width = data.progress + '%';
                     text.textContent = data.progress + '% (Paused)';
@@ -368,6 +379,16 @@ const StoreModule = {
                     if (resumeBtn) resumeBtn.style.display = 'inline-block';
                     if (cancelBtn) cancelBtn.style.display = 'inline-block';
                     // We don't loop here. Resume will restart polling.
+                } else if (data.status === 'requested') {
+                    if (prog) prog.style.display = 'flex';
+                    fill.style.background = 'var(--surface2)';
+                    fill.style.width = '100%';
+                    text.textContent = 'Pending Approval...';
+                    if (btn) { btn.textContent = 'REQUESTED'; btn.disabled = true; }
+                    if (pauseBtn) pauseBtn.style.display = 'none';
+                    if (resumeBtn) resumeBtn.style.display = 'none';
+                    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+                    setTimeout(check, 5000);
                 } else if (data.status === 'complete') {
                     if (prog) prog.style.display = 'none';
                     if (fill) { fill.style.width = '100%'; fill.style.background = 'var(--border)'; }
@@ -377,7 +398,8 @@ const StoreModule = {
                     if (cancelBtn) cancelBtn.style.display = 'none';
                     if (pauseBtn) pauseBtn.style.display = 'none';
                     if (resumeBtn) resumeBtn.style.display = 'none';
-                    if (deleteBtn) deleteBtn.style.display = 'block';
+                    // Force refresh all buttons to sync "DONE" state
+                    this.checkExistingDownloads();
                 } else if (data.status === 'failed') {
                     fill.style.width = '100%';
                     fill.style.background = 'var(--red)';
@@ -397,9 +419,17 @@ const StoreModule = {
                     if (cancelBtn) cancelBtn.style.display = 'none';
                     if (pauseBtn) pauseBtn.style.display = 'none';
                     if (resumeBtn) resumeBtn.style.display = 'none';
-                    if (data.output) alert('⚠️ Integrity Check Failed:\n' + data.output);
-                } else if (data.status === 'cancelled') {
-                    // Already handled in cancelDownload
+                    if (data.output) alert('Integrity Check Failed:\n' + data.output);
+                } else if (data.status === 'idle') {
+                    if (btn) {
+                        btn.textContent = window.currentUser?.role === 'admin' ? 'DOWNLOAD' : 'REQUEST';
+                        btn.disabled = false;
+                    }
+                    if (prog) prog.style.display = 'none';
+                    if (fill) fill.style.width = '0%';
+                    if (text) text.textContent = '';
+                    if (cancelBtn) cancelBtn.style.display = 'none';
+                    return; // Stop polling because request was probably rejected or download never started
                 } else {
                     setTimeout(check, 3000);
                 }

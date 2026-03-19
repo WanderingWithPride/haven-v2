@@ -75,7 +75,7 @@ const MapsModule = {
             const toggleBtn = document.getElementById('btn-toggle-maps');
             if (config.hasOfflineTiles) {
                 toggleBtn.style.display = '';
-                toggleBtn.textContent = '📵 Use Offline Maps';
+                toggleBtn.textContent = 'Use Offline Maps';
             } else {
                 toggleBtn.style.display = 'none';
             }
@@ -113,12 +113,12 @@ const MapsModule = {
         if (this.isOffline && this.offlineTileUrl) {
             this.tileLayer.setUrl(this.offlineTileUrl);
             document.getElementById('mapStatus').textContent = 'Using offline tiles';
-            document.getElementById('btn-toggle-maps').textContent = '🌍 Use Online Maps';
+            document.getElementById('btn-toggle-maps').textContent = 'Use Online Maps';
         } else {
             this.isOffline = false;
             this.tileLayer.setUrl(this.onlineTileUrl);
             document.getElementById('mapStatus').textContent = 'Using online tiles (OSM)';
-            document.getElementById('btn-toggle-maps').textContent = '📵 Use Offline Maps';
+            document.getElementById('btn-toggle-maps').textContent = 'Use Offline Maps';
         }
     },
 
@@ -153,7 +153,7 @@ const MapsModule = {
         try {
             const btn = document.getElementById('btn-dl-map');
             btn.disabled = true;
-            btn.textContent = '⏳ Preparing...';
+            btn.textContent = 'Preparing...';
 
             const res = await authFetch(`${API}/api/maps/download`, {
                 method: 'POST',
@@ -165,7 +165,7 @@ const MapsModule = {
             if (data.error) {
                 alert(data.error);
                 btn.disabled = false;
-                btn.textContent = '📥 Download Region';
+                btn.textContent = 'Download Region';
                 return;
             }
 
@@ -198,7 +198,7 @@ const MapsModule = {
                 fill.style.background = 'var(--green)';
                 text.textContent = 'Complete! Offline tiles are ready.';
                 document.getElementById('btn-dl-map').disabled = false;
-                document.getElementById('btn-dl-map').textContent = '📥 Download Region';
+                document.getElementById('btn-dl-map').textContent = 'Download Region';
 
                 // Hide progress bar and show toggle button after 2 seconds (stay on online tiles)
                 setTimeout(async () => {
@@ -213,7 +213,7 @@ const MapsModule = {
                         if (cfg.hasOfflineTiles) {
                             const toggleBtn = document.getElementById('btn-toggle-maps');
                             toggleBtn.style.display = '';
-                            toggleBtn.textContent = '📵 Use Offline Maps';
+                            toggleBtn.textContent = 'Use Offline Maps';
                         }
                     } catch (e) { }
                 }, 2000);
@@ -234,7 +234,7 @@ const MapsModule = {
             this.activeDlId = null;
             document.getElementById('mapDlProgress').style.display = 'none';
             document.getElementById('btn-dl-map').disabled = false;
-            document.getElementById('btn-dl-map').textContent = '📥 Download Region';
+            document.getElementById('btn-dl-map').textContent = 'Download Region';
         } catch (e) { }
     }
 };

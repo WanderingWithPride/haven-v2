@@ -3,7 +3,7 @@ const express = require('express');
 let fetch;
 try { fetch = require('node-fetch'); } catch (e) { fetch = null; }
 
-module.exports = function (config) {
+module.exports = function (config, rag) {
     const router = express.Router();
     const baseUrl = `http://localhost:${config.services.ollama.port}`;
 
@@ -36,20 +36,33 @@ module.exports = function (config) {
         try {
             if (!fetch) return res.status(500).json({ error: 'node-fetch not installed' });
 
-            const { model, messages, stream = true } = req.body;
+            const { model, messages, stream = true, useRag = false } = req.body;
             const modelName = model || config.services.ollama.defaultModel || 'tinyllama';
 
-            if (stream) {
-                // Server-Sent Events for streaming
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
+            // 1. If RAG is enabled, get context
+            let augmentedMessages = [...messages];
+            if (useRag && messages.length > 0) {
+                const lastMsg = messages[messages.length - 1].content;
+                const context = await rag.getContext(lastMsg);
+                if (context) {
+                    // Inject context as a system-like instruction at the start or before the last message
+                    // We'll append it to the last message for simplicity in this implementation
+                    augmentedMessages[augmentedMessages.length - 1].content = 
+                        `${context}\n\nUser Question: ${lastMsg}`;
+                }
+            }
 
+            if (stream) {
                 const response = await fetch(`${baseUrl}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: modelName, messages, stream: true })
+                    body: JSON.stringify({ model: modelName, messages: augmentedMessages, stream: true })
                 });
+
+                // ... (streaming logic remains same)
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
 
                 const reader = response.body;
                 reader.on('data', (chunk) => {
@@ -58,26 +71,21 @@ module.exports = function (config) {
                         try {
                             const data = JSON.parse(line);
                             res.write(`data: ${JSON.stringify(data)}\n\n`);
-                            if (data.done) {
-                                res.write('data: [DONE]\n\n');
-                            }
-                        } catch (e) { /* skip non-JSON lines */ }
+                            if (data.done) res.write('data: [DONE]\n\n');
+                        } catch (e) { }
                     }
                 });
-
                 reader.on('end', () => res.end());
                 reader.on('error', (err) => {
                     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
                     res.end();
                 });
-
                 req.on('close', () => reader.destroy());
             } else {
-                // Non-streaming response
                 const response = await fetch(`${baseUrl}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: modelName, messages, stream: false })
+                    body: JSON.stringify({ model: modelName, messages: augmentedMessages, stream: false })
                 });
                 const data = await response.json();
                 res.json(data);
@@ -86,6 +94,8 @@ module.exports = function (config) {
             res.status(500).json({ error: `LLM error: ${err.message}` });
         }
     });
+
+    // ... (rest of the code)
 
     // Generate (single prompt, no chat history)
     router.post('/generate', async (req, res) => {

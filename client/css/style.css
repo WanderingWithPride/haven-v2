@@ -554,6 +554,37 @@ body {
     filter: brightness(1.1);
 }
 
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 11px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(255, 170, 0, 0.05);
+}
+
+.spinning {
+    animation: spin 0.8s linear infinite;
+}
+
 .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -1190,7 +1221,6 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
 }
 
 .model-selector select {
@@ -1198,10 +1228,12 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 4px 12px;
+    font-size: 11px;
     outline: none;
     font-family: 'JetBrains Mono', monospace;
+    height: 28px;
+    line-height: 1;
 }
 
 .model-selector label {
@@ -2698,4 +2730,72 @@ body.perf-mode .bg-grid {
 .wiki-article img {
     color: transparent;
     font-size: 0;
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE UI OPTIMIZATION EXTRA
+   ═══════════════════════════════════════════ */
+.mobile-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-bottom: 1px solid var(--border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 900;
+}
+
+.mobile-hamburger {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.mobile-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--primary);
+    text-shadow: var(--glow-primary);
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 105;
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+    .mobile-header {
+        display: flex;
+    }
+    
+    .sidebar-backdrop {
+        display: block;
+        pointer-events: none;
+    }
+    .sidebar-backdrop.visible {
+        pointer-events: auto;
+    }
 }

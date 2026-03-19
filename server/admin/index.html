@@ -717,6 +717,43 @@
                 <button class="btn" onclick="scanAll()" style="margin-top:12px;width:100%">🔄 Scan All
                     Libraries</button>
             </div>
+            <div class="card" style="grid-column: 1 / -1; border-color: var(--primary);">
+                <h3><span class="icon">📋</span> Pending Download Requests</h3>
+                <table class="user-table" id="requestsTable">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Item Name</th>
+                            <th>Type</th>
+                            <th>Requested At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestsTableBody">
+                        <tr><td colspan="5" style="color:var(--text-dim)">Loading requests...</td></tr>
+                    </tbody>
+                </table>
+                <button class="btn" onclick="loadDownloadRequests()" style="margin-top:12px">🔄 Refresh Requests</button>
+            </div>
+            
+            <div class="card" style="grid-column: 1 / -1;">
+                <h3><span class="icon">📦</span> Downloaded Content</h3>
+                <table class="user-table" id="storeTable">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Path / ID</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storeTableBody">
+                        <tr><td colspan="5" style="color:var(--text-dim)">Loading...</td></tr>
+                    </tbody>
+                </table>
+                <button class="btn" onclick="loadStoreContent()" style="margin-top:12px">🔄 Refresh List</button>
+            </div>
         </div>
     </div>
 </div>
@@ -811,7 +848,7 @@
     function showApp() {
         document.getElementById('loginOverlay').classList.add('hidden');
         document.getElementById('appContent').classList.add('visible');
-        loadSystem(); loadServices(); loadConfig(); loadLibraryCounts(); loadUsers();
+        loadSystem(); loadServices(); loadConfig(); loadLibraryCounts(); loadUsers(); loadStoreContent(); loadDownloadRequests();
         
         // Start background tasks
         stopAdminTasks();
@@ -831,6 +868,182 @@
             throw new Error('Session expired'); 
         }
         return res;
+    }
+
+    async function loadStoreContent() {
+        const body = document.getElementById('storeTableBody');
+        body.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim)">Loading...</td></tr>';
+        try {
+            const res = await adminFetch(`${API}/api/store/downloaded`);
+            const data = await res.json();
+            if (!data.files || data.files.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim)">No content downloaded.</td></tr>';
+                return;
+            }
+            let html = '';
+            let activePolls = [];
+            data.files.forEach(f => {
+                const icon = f.type === 'zim' ? '📚' : (f.type === 'ollama' ? '🧠' : '🗺️');
+                const sizeStr = (f.sizeBytes / 1024 / 1024 / 1024) > 1 
+                    ? (f.sizeBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' 
+                    : (f.sizeBytes / 1024 / 1024).toFixed(1) + ' MB';
+                const idStr = f.id.replace(/'/g, "\\'");
+                
+                let actionHtml = `<button class="btn danger" onclick="adminDeleteContent('${idStr}')">DELETE</button>`;
+                let nameHtml = `<td style="font-weight: bold;">${icon} ${f.name}</td>`;
+                
+                if (f.isDownloading) {
+                    activePolls.push(idStr);
+                    nameHtml = `
+                        <td style="font-weight: bold;">
+                            ${icon} ${f.name}
+                            <div style="margin-top:4px; font-weight: normal; font-size:10px; color:var(--text-dim)">
+                                <progress id="admin-prog-${idStr}" value="${f.progress}" max="100" style="width:100px; height:6px"></progress>
+                                <span id="admin-text-${idStr}">${f.status === 'paused' ? 'Paused' : f.progress + '%'}</span>
+                            </div>
+                        </td>
+                    `;
+                    actionHtml = `
+                        ${f.status === 'paused' 
+                            ? `<button class="btn success" onclick="adminResumeDownload('${idStr}')" style="margin-right:4px; font-size:10px; padding: 4px 8px;">RESUME</button>`
+                            : `<button class="btn" onclick="adminPauseDownload('${idStr}')" style="margin-right:4px; font-size:10px; padding: 4px 8px;">PAUSE</button>`
+                        }
+                        <button class="btn danger" onclick="adminCancelDownload('${idStr}')" style="font-size:10px; padding: 4px 8px;">CANCEL</button>
+                    `;
+                }
+
+                html += `
+                    <tr>
+                        ${nameHtml}
+                        <td><span class="role-badge role-user">${f.type.toUpperCase()}</span></td>
+                        <td style="font-family: 'JetBrains Mono', monospace;">${sizeStr}</td>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);">${f.relativePath || f.name}</td>
+                        <td>${actionHtml}</td>
+                    </tr>
+                `;
+            });
+            body.innerHTML = html;
+            activePolls.forEach(id => adminPollProgress(id));
+        } catch (e) {
+            body.innerHTML = `<tr><td colspan="5" style="color:var(--red)">Failed to load.</td></tr>`;
+        }
+    }
+
+    async function adminPauseDownload(id) {
+        try { await adminFetch(`${API}/api/store/pause/${id}`, { method: 'POST' }); alert('Paused'); loadStoreContent(); } catch (e) { alert(e.message); }
+    }
+    async function adminResumeDownload(id) {
+        try { await adminFetch(`${API}/api/store/resume/${id}`, { method: 'POST' }); alert('Resumed'); loadStoreContent(); } catch (e) { alert(e.message); }
+    }
+    async function adminCancelDownload(id) {
+        if (!confirm('Cancel this download permanently?')) return;
+        try { await adminFetch(`${API}/api/store/cancel/${id}`, { method: 'POST' }); loadStoreContent(); } catch (e) { alert(e.message); }
+    }
+
+    async function adminPollProgress(id) {
+        if (!window._adminPollers) window._adminPollers = {};
+        if (window._adminPollers[id]) return;
+        window._adminPollers[id] = true;
+
+        const check = async () => {
+            const prog = document.getElementById(`admin-prog-${id}`);
+            const text = document.getElementById(`admin-text-${id}`);
+            if (!prog || !text) {
+                delete window._adminPollers[id];
+                return;
+            }
+
+            try {
+                const res = await adminFetch(`${API}/api/store/progress/${id}`);
+                const data = await res.json();
+                
+                if (data.status === 'idle' || data.status === 'cancelled' || data.status === 'complete' || data.status === 'failed') {
+                    loadStoreContent();
+                    delete window._adminPollers[id];
+                    return;
+                } else if (data.status === 'downloading') {
+                    prog.value = data.progress;
+                    text.textContent = data.progress + '%';
+                } else if (data.status === 'paused') {
+                    prog.value = data.progress;
+                    text.textContent = data.progress + '% (Paused)';
+                } else {
+                    text.textContent = data.status;
+                }
+                setTimeout(check, 1000);
+            } catch (e) {
+                setTimeout(check, 2000);
+            }
+        };
+        check();
+    }
+
+    async function loadDownloadRequests() {
+        const body = document.getElementById('requestsTableBody');
+        body.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim)">Loading...</td></tr>';
+        try {
+            const res = await adminFetch(`${API}/api/store/requests`);
+            const data = await res.json();
+            if (!data.requests || data.requests.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim)">No pending requests.</td></tr>';
+                return;
+            }
+            let html = '';
+            data.requests.forEach(r => {
+                const dateStr = new Date(r.requestedAt).toLocaleString();
+                const idStr = r.id.replace(/'/g, "\\'");
+                html += `
+                    <tr>
+                        <td style="font-weight: bold;">${r.requestedBy}</td>
+                        <td>${r.name || r.id}</td>
+                        <td><span class="role-badge role-user">${r.type.toUpperCase()}</span></td>
+                        <td style="color: var(--text-dim);">${dateStr}</td>
+                        <td>
+                            <button class="btn success" onclick="approveDownloadRequest('${idStr}')" style="margin-right:8px;">APPROVE</button>
+                            <button class="btn danger" onclick="rejectDownloadRequest('${idStr}')">REJECT</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            body.innerHTML = html;
+        } catch (e) {
+            body.innerHTML = `<tr><td colspan="5" style="color:var(--red)">Failed to load requests.</td></tr>`;
+        }
+    }
+
+    async function approveDownloadRequest(id) {
+        if (!confirm('Approve this download? This will start writing to disk immediately.')) return;
+        try {
+            const res = await adminFetch(`${API}/api/store/requests/${id}/approve`, { method: 'POST' });
+            const data = await res.json();
+            if (data.error) alert('Error: ' + data.error);
+            else { alert('Download Started'); loadDownloadRequests(); loadStoreContent(); }
+        } catch (e) { alert('Approval failed: ' + e.message); }
+    }
+
+    async function rejectDownloadRequest(id) {
+        if (!confirm('Reject and delete this download request?')) return;
+        try {
+            const res = await adminFetch(`${API}/api/store/requests/${id}/reject`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.error) alert('Error: ' + data.error);
+            else { loadDownloadRequests(); }
+        } catch (e) { alert('Rejection failed: ' + e.message); }
+    }
+
+    async function adminDeleteContent(id) {
+        if (!confirm('Are you sure you want to permanently delete this content?')) return;
+        try {
+            const res = await adminFetch(`${API}/api/store/delete/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.error) alert('Error: ' + data.error);
+            else {
+                alert(data.message || 'Deleted successfully');
+                loadStoreContent();
+            }
+        } catch (e) {
+            alert('Delete failed: ' + e.message);
+        }
     }
 
     // ── User Management ──

@@ -10,8 +10,7 @@ const ASSETS_TO_CACHE = [
     '/js/llm.js',
     '/js/wiki.js',
     '/js/maps.js',
-    '/js/ebooks.js',
-    '/js/files.js'
+    '/js/ebooks.js'
     // Exclude API responses, media streams, and dynamically fetched content
 ];
 

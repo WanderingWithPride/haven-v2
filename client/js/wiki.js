@@ -11,6 +11,15 @@ const WikiModule = {
                     <div class="module-title">Wikipedia</div>
                     <div class="module-subtitle" id="wikiStatus">Offline Encyclopedia</div>
                 </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div class="model-selector">
+                        <label>Dataset:</label>
+                        <select id="wikiDatasetSelect" style="max-width:180px">
+                            <option value="all">All Datasets</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-sm btn-outline" id="refreshWikiBtn" onclick="WikiModule.refresh()" title="Refresh Status">Refresh</button>
+                </div>
             </div>
             <div style="max-width: 600px; margin: 0 auto;">
                 <div class="search-box" style="max-width: 100%; margin-bottom: 24px;">
@@ -28,6 +37,37 @@ const WikiModule = {
             </div>
         `;
         await this.checkStatus();
+        this.loadDatasets();
+    },
+
+    async loadDatasets() {
+        try {
+            const res = await authFetch(`${API}/api/wiki/datasets`);
+            const data = await res.json();
+            const select = document.getElementById('wikiDatasetSelect');
+            if (select && data.datasets && data.datasets.length > 0) {
+                let html = '<option value="all">All Datasets</option>';
+                data.datasets.forEach(d => {
+                    html += `<option value="${d.id}">${escapeHtml(d.name)}</option>`;
+                });
+                select.innerHTML = html;
+            }
+        } catch (e) {
+            console.error('Failed to load datasets', e);
+        }
+    },
+
+    async refresh() {
+        const btn = document.getElementById('refreshWikiBtn');
+        if (btn) {
+            const currentRotation = parseInt(btn.dataset.rotation || '0');
+            const newRotation = currentRotation + 360;
+            btn.style.transition = 'transform 0.5s ease';
+            btn.style.transform = `rotate(${newRotation}deg)`;
+            btn.dataset.rotation = newRotation;
+        }
+        await this.checkStatus();
+        await this.loadDatasets();
     },
 
     async checkStatus() {
@@ -46,8 +86,11 @@ const WikiModule = {
         const el = document.getElementById('wikiContent');
         el.innerHTML = '<div class="loading-spinner"></div>';
 
+        const datasetSelect = document.getElementById('wikiDatasetSelect');
+        const datasetAttr = datasetSelect && datasetSelect.value !== 'all' ? `&dataset=${datasetSelect.value}` : '';
+
         try {
-            const res = await authFetch(`${API}/api/wiki/search?q=${encodeURIComponent(query)}`);
+            const res = await authFetch(`${API}/api/wiki/search?q=${encodeURIComponent(query)}${datasetAttr}`);
             const data = await res.json();
 
             if (!data.results || data.results.length === 0) {

@@ -65,6 +65,7 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
         if (startByte > 0) {
             options.headers['Range'] = `bytes=${startByte}-`;
         }
+        let fileStream = null;
 
         const req = proto.get(url, options, (res) => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -91,40 +92,51 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
             const contentLength = parseInt(res.headers['content-length'], 10) || 0;
             const totalSize = startByte + contentLength;
             let downloaded = startByte;
-            const fileStream = fs.createWriteStream(dest, { flags: res.statusCode === 206 ? 'a' : 'w' });
+            fileStream = fs.createWriteStream(dest, { flags: res.statusCode === 206 ? 'a' : 'w' });
+            
+            const curProc = activeProcesses.get(dlId);
+            if (curProc) activeProcesses.set(dlId, { ...curProc, fileStream });
 
+            let lastUpdate = 0;
             res.on('data', (chunk) => {
                 downloaded += chunk.length;
-                const pct = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
+                const now = Date.now();
+                
                 const dl = activeDownloads.get(dlId) || {};
                 if (dl.status === 'paused' || dl.status === 'cancelled') {
                     req.destroy();
                     return;
                 }
-                activeDownloads.set(dlId, {
-                    ...dl, status: 'downloading', progress: pct, progressBytes: downloaded, totalBytes: totalSize,
-                    output: `${fileName}\n${(downloaded / 1048576).toFixed(1)} MB / ${(totalSize / 1048576).toFixed(1)} MB (${pct}%)`
-                });
 
-                // Update parent if provided (for aggregate speed/progress)
-                if (parentDlId) {
-                    const pdl = activeDownloads.get(parentDlId);
-                    if (pdl) {
-                        const subDownloads = pdl.subDownloads || {};
-                        subDownloads[dlId] = { downloaded, total: totalSize };
+                // Throttle updates to ~2Hz to save CPU
+                if (now - lastUpdate > 500 || downloaded === totalSize) {
+                    lastUpdate = now;
+                    const pct = totalSize > 0 ? Math.round((downloaded / totalSize) * 100) : 0;
+                    activeDownloads.set(dlId, {
+                        ...dl, status: 'downloading', progress: pct, progressBytes: downloaded, totalBytes: totalSize,
+                        output: `${fileName}\n${(downloaded / 1048576).toFixed(1)} MB / ${(totalSize / 1048576).toFixed(1)} MB (${pct}%)`
+                    });
 
-                        let totalDownloaded = 0;
-                        let totalToDownload = pdl.totalBytes || 0;
-                        Object.values(subDownloads).forEach(sub => {
-                            totalDownloaded += sub.downloaded;
-                        });
+                    // Update parent if provided (for aggregate speed/progress)
+                    if (parentDlId) {
+                        const pdl = activeDownloads.get(parentDlId);
+                        if (pdl) {
+                            const subDownloads = pdl.subDownloads || {};
+                            subDownloads[dlId] = { downloaded, total: totalSize };
 
-                        activeDownloads.set(parentDlId, {
-                            ...pdl,
-                            subDownloads,
-                            progressBytes: totalDownloaded,
-                            progress: totalToDownload > 0 ? Math.round((totalDownloaded / totalToDownload) * 100) : pdl.progress
-                        });
+                            let totalDownloaded = 0;
+                            let totalToDownload = pdl.totalBytes || 0;
+                            Object.values(subDownloads).forEach(sub => {
+                                totalDownloaded += sub.downloaded;
+                            });
+
+                            activeDownloads.set(parentDlId, {
+                                ...pdl,
+                                subDownloads,
+                                progressBytes: totalDownloaded,
+                                progress: totalToDownload > 0 ? Math.round((totalDownloaded / totalToDownload) * 100) : pdl.progress
+                            });
+                        }
                     }
                 }
             });
@@ -136,6 +148,9 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
                 activeProcesses.delete(dlId);
                 const dl = activeDownloads.get(dlId) || {};
                 if (dl.status !== 'cancelled' && dl.status !== 'paused') {
+                    // Set status to verifying for the UI
+                    activeDownloads.set(dlId, { ...dl, status: 'verifying', output: 'Verifying integrity...' });
+                    
                     const hash = crypto.createHash('sha256');
                     const verifyStream = fs.createReadStream(dest);
                     verifyStream.on('data', (chunk) => hash.update(chunk));
@@ -168,9 +183,14 @@ function downloadFile(url, dest, dlId, activeDownloads, activeProcesses, maxRedi
             });
 
             fileStream.on('error', (err) => { try { fs.unlinkSync(dest); } catch (e) { } reject(err); });
-        }).on('error', reject);
+        }).on('error', (err) => {
+            if (fileStream) fileStream.close(() => {
+                try { fs.unlinkSync(dest); } catch (e) { }
+            });
+            reject(err);
+        });
 
-        activeProcesses.set(dlId, { type: 'request', req, dest, url, maxRedirects });
+        activeProcesses.set(dlId, { type: 'request', req, dest, url, maxRedirects, fileStream: null });
     });
 }
 
@@ -187,7 +207,56 @@ module.exports = function (config) {
     const fetch = require('node-fetch').default || require('node-fetch');
     const agent = new https.Agent({ rejectUnauthorized: false });
 
-    // Catalog Manifest — loads from store/catalog.json (no code changes needed to add items)
+    // Persistent Queues
+    const DATA_DIR = path.join(__dirname, '..', 'data');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    
+    const REQUESTS_FILE = path.join(DATA_DIR, 'download_requests.json');
+    const DOWNLOADS_FILE = path.join(DATA_DIR, 'active_downloads.json');
+    const downloadRequests = new Map();
+
+    function saveRequests() {
+        try { fs.writeFileSync(REQUESTS_FILE, JSON.stringify(Array.from(downloadRequests.entries()))); } catch(e){}
+    }
+    function saveDownloads() {
+        try { fs.writeFileSync(DOWNLOADS_FILE, JSON.stringify(Array.from(activeDownloads.entries()))); } catch(e){}
+    }
+
+    const origSet = activeDownloads.set.bind(activeDownloads);
+    const origDel = activeDownloads.delete.bind(activeDownloads);
+    activeDownloads.set = (k, v) => { origSet(k, v); saveDownloads(); return activeDownloads; };
+    activeDownloads.delete = (k) => { const r = origDel(k); saveDownloads(); return r; };
+
+    function loadState() {
+        try {
+            if (fs.existsSync(REQUESTS_FILE)) {
+                JSON.parse(fs.readFileSync(REQUESTS_FILE)).forEach(([k,v]) => downloadRequests.set(k, v));
+            }
+            if (fs.existsSync(DOWNLOADS_FILE)) {
+                JSON.parse(fs.readFileSync(DOWNLOADS_FILE)).forEach(([k,v]) => {
+                    if (v.status !== 'complete' && v.status !== 'corrupted' && v.status !== 'failed') {
+                        v.status = 'paused'; // Will be resumed shortly
+                        origSet(k, v);
+                    }
+                });
+            }
+        } catch(e) { console.error('[Store] Failed to load persistent state:', e.message); }
+    }
+    loadState();
+
+    // Resume interrupted downloads
+    setTimeout(async () => {
+        for (const [id, job] of activeDownloads.entries()) {
+            if (job.status === 'paused') {
+                try {
+                    console.log(`[Store] Auto-resuming download: ${id}`);
+                    await processDownloadJob(job);
+                } catch(e) { console.error(`[Store] Failed to auto-resume ${id}:`, e.message); }
+            }
+        }
+    }, 2000);
+
+    // Catalog Manifest — loads from store/catalog.json
     const CATALOG_PATH = path.join(__dirname, '..', 'store', 'catalog.json');
 
     router.get('/catalog', (req, res) => {
@@ -239,9 +308,25 @@ module.exports = function (config) {
 
     // Download endpoint
     router.post('/download', async (req, res) => {
-        const { id, url, dirUrl, pattern, cmd, type, sha256, license, licenseUrl, source, sourceUrl, distributor, name: itemName } = req.body;
+        if (!req.user || req.user.role !== 'admin') {
+            const reqData = { ...req.body, requestedBy: req.user?.username || 'user', requestedAt: new Date().toISOString() };
+            downloadRequests.set(req.body.id, reqData);
+            saveRequests();
+            return res.json({ success: true, downloadId: req.body.id, status: 'requested', message: 'Download requested! Awaiting admin approval.' });
+        }
 
-        // Build sidecar license metadata (travels with content during DTN/LAN sync)
+        try {
+            await processDownloadJob(req.body);
+            res.json({ success: true, downloadId: req.body.id, message: 'Download started' });
+        } catch(e) {
+            res.status(400).json({ error: e.message });
+        }
+    });
+
+    async function processDownloadJob(jobConfig) {
+        const { id, url, dirUrl, pattern, cmd, type, sha256, license, licenseUrl, source, sourceUrl, distributor, name: itemName } = jobConfig;
+
+        // Build sidecar license metadata 
         const licenseMetadata = {
             id, name: itemName || id,
             license: license || 'Unknown',
@@ -250,17 +335,16 @@ module.exports = function (config) {
             sourceUrl: sourceUrl || '',
             distributor: distributor || '',
             downloadedAt: new Date().toISOString(),
-            notice: 'This content is provided by a third-party project. CyberDeck does not own or claim ownership of this resource. Please comply with the original license terms.'
+            notice: 'This content is provided by a third-party project. CyberDeck does not own or claim ownership of this resource.'
         };
 
         if (type === 'ollama') {
             const dlId = id;
-            // Extract and validate model name
             const modelName = (cmd || '').replace(/^ollama\s+pull\s+/, '').trim();
-            if (!SAFE_MODEL_NAME.test(modelName)) {
-                return res.status(400).json({ error: 'Invalid model name' });
-            }
-            activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: '', type: 'ollama', modelName });
+            if (!SAFE_MODEL_NAME.test(modelName)) throw new Error('Invalid model name');
+            
+            // Persist full job config
+            activeDownloads.set(dlId, { ...jobConfig, status: 'downloading', progress: 0, output: '', type: 'ollama', modelName });
 
             const proc = execFile('ollama', ['pull', modelName], { timeout: 3600000 });
             activeProcesses.set(dlId, { type: 'process', proc });
@@ -277,7 +361,8 @@ module.exports = function (config) {
             });
             proc.on('close', (code) => {
                 activeProcesses.delete(dlId);
-                const dl = activeDownloads.get(dlId) || {};
+                if (!activeDownloads.has(dlId)) return;
+                const dl = activeDownloads.get(dlId);
                 if (dl.status !== 'cancelled') {
                     activeDownloads.set(dlId, { ...dl, status: code === 0 ? 'complete' : 'failed', progress: code === 0 ? 100 : dl.progress, output });
                     // Write sidecar license file for Ollama models
@@ -291,54 +376,82 @@ module.exports = function (config) {
                 }
             });
 
-            res.json({ success: true, downloadId: dlId, message: 'Model download started' });
-
         } else if (type === 'zim') {
             const dlId = id;
-            activeDownloads.set(dlId, { status: 'discovering', progress: 0, output: 'Finding latest version...' });
+            activeDownloads.set(dlId, { ...jobConfig, status: 'discovering', progress: 0, output: 'Finding latest version...' });
 
             try {
                 // Step 1: Discover actual download URL
                 let downloadUrl;
                 if (dirUrl && pattern) {
-                    // Auto-discover from directory listing
-                    activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: 'Discovering latest file from Kiwix...' });
+                    activeDownloads.set(dlId, { ...jobConfig, status: 'downloading', progress: 0, output: 'Discovering latest file from Kiwix...' });
                     downloadUrl = await discoverZimUrl(dirUrl, pattern);
                 } else if (url) {
                     downloadUrl = url;
                 } else {
                     activeDownloads.set(dlId, { status: 'failed', progress: 0, output: 'No URL or directory configured' });
-                    return res.status(400).json({ error: 'No download URL' });
+                    throw new Error('No download URL');
                 }
 
                 const fileName = downloadUrl.split('/').pop();
                 const dest = path.join(DOWNLOADS_DIR, fileName);
-                activeDownloads.set(dlId, { status: 'downloading', progress: 0, output: `Downloading: ${fileName}`, type: 'zim', dest, expectedSha256: sha256 || null, licenseMetadata });
+                activeDownloads.set(dlId, { ...jobConfig, status: 'downloading', progress: 0, output: `Downloading: ${fileName}`, type: 'zim', dest, expectedSha256: sha256 || null, licenseMetadata });
 
-                // Step 2: Download using Node.js built-in https (no curl/wget needed)
                 downloadFile(downloadUrl, dest, dlId, activeDownloads, activeProcesses);
-
-                res.json({ success: true, downloadId: dlId, message: `Downloading: ${fileName}` });
 
             } catch (err) {
                 activeDownloads.set(dlId, { status: 'failed', progress: 0, output: err.message });
-                res.json({ success: true, downloadId: dlId, message: err.message });
+                throw err;
             }
 
         } else if (type === 'manual') {
-            if (url) res.json({ success: true, downloadId: id, message: 'Open in browser', url });
-            else res.status(400).json({ error: 'No URL' });
+            if (!url) throw new Error('No URL for manual download');
         } else {
-            res.status(400).json({ error: 'Invalid download type' });
+            throw new Error('Invalid download type');
         }
+    }
+
+    // --- Admin Request Management ---
+    router.get('/requests', (req, res) => {
+        if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+        res.json({ requests: Array.from(downloadRequests.values()) });
+    });
+
+    router.post('/requests/:id/approve', async (req, res) => {
+        if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+        const rId = req.params.id;
+        const jobConfig = downloadRequests.get(rId);
+        if (!jobConfig) return res.status(404).json({ error: 'Request not found' });
+        
+        try {
+            await processDownloadJob(jobConfig);
+            downloadRequests.delete(rId);
+            saveRequests();
+            res.json({ success: true, message: 'Request approved and download started' });
+        } catch(e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+
+    router.delete('/requests/:id/reject', (req, res) => {
+        if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Unauthorized' });
+        const rId = req.params.id;
+        downloadRequests.delete(rId);
+        saveRequests();
+        res.json({ success: true, message: 'Request rejected' });
     });
 
     // Pause an active download
     // Progress polling endpoint
     router.get('/progress/:id', (req, res) => {
         const dlId = req.params.id;
-        const info = activeDownloads.get(dlId) || { status: 'idle', progress: 0 };
-        res.json(info);
+        if (activeDownloads.has(dlId)) {
+            return res.json(activeDownloads.get(dlId));
+        }
+        if (downloadRequests.has(dlId)) {
+            return res.json({ status: 'requested', progress: 0, output: 'Awaiting Administrator Approval...' });
+        }
+        res.json({ status: 'idle', progress: 0 });
     });
 
     // Pause an active download
@@ -363,35 +476,75 @@ module.exports = function (config) {
         res.json({ success: true, status: 'resuming' });
     });
 
+    function forceSweepZim(dlId) {
+        const zimPatterns = {
+            'wiki-en-simple': 'wikipedia_en_simple',
+            'wiki-en-nopic': 'wikipedia_en_all_nopic',
+            'wikibooks': 'wikibooks_en',
+            'wikihow': 'wikihow_en',
+            'ifixit': 'ifixit_en',
+            'stackexchange': 'stackoverflow',
+            'medref': 'mdwiki_en'
+        };
+        const prefix = zimPatterns[dlId];
+        try {
+            const files = fs.readdirSync(DOWNLOADS_DIR);
+            files.forEach(f => {
+                if ((prefix && f.startsWith(prefix)) || f === dlId || f.includes(dlId)) {
+                    const fullPath = path.join(DOWNLOADS_DIR, f);
+                    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+                        if (fullPath.endsWith('.zim')) {
+                            try {
+                                if (process.platform === 'win32') require('child_process').execSync('taskkill /IM kiwix-serve.exe /F /T', { stdio: 'ignore' });
+                                else require('child_process').execSync('pkill -f "kiwix-serve"', { stdio: 'ignore' });
+                            } catch (e) {} 
+                        }
+                        try { fs.unlinkSync(fullPath); } catch(e){}
+                        const lic = fullPath.replace(/\.[^.]+$/, '') + '.license.json';
+                        if (fs.existsSync(lic)) try { fs.unlinkSync(lic); } catch(e){}
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+
+    function handleCancel(dlId, res) {
+        const proc = activeProcesses.get(dlId);
+        const dl = activeDownloads.get(dlId);
+
+        if (proc) {
+            if (proc.type === 'process' && proc.proc) proc.proc.kill();
+            else if (proc.type === 'request' && proc.req) proc.req.destroy();
+            activeProcesses.delete(dlId);
+        }
+        
+        const finishCancel = () => {
+            forceSweepZim(dlId);
+            if (dl) activeDownloads.delete(dlId);
+            if (res) res.json({ success: true, status: 'cancelled' });
+        };
+
+        if (dl) {
+            if (dl.dest) {
+                if (proc && proc.fileStream) {
+                    proc.fileStream.close(() => { 
+                        try { fs.unlinkSync(dl.dest); } catch(e){} 
+                        finishCancel();
+                    });
+                    return; // Wait for OS to release file lock completely
+                } else if (fs.existsSync(dl.dest)) {
+                    try { fs.unlinkSync(dl.dest); } catch(e){}
+                }
+            } else if (dl.type === 'ollama' && dl.modelName) {
+                try { require('child_process').exec(`echo rm ${dl.modelName} && ollama rm ${dl.modelName}`, ()=>{}); } catch(e){}
+            }
+        }
+        finishCancel();
+    }
+
     // Cancel an active download
-    router.post('/progress/:id/cancel', (req, res) => {
-        const dlId = req.params.id;
-        const proc = activeProcesses.get(dlId);
-        const dl = activeDownloads.get(dlId);
-
-        if (proc) {
-            if (proc.type === 'process' && proc.proc) proc.proc.kill();
-            else if (proc.type === 'request' && proc.req) proc.req.destroy();
-            activeProcesses.delete(dlId);
-        }
-        if (dl) activeDownloads.set(dlId, { ...dl, status: 'cancelled' });
-        res.json({ success: true, status: 'cancelled' });
-    });
-
-    // Alias routes to match client expectations
-    router.post('/cancel/:id', (req, res) => {
-        const dlId = req.params.id;
-        const proc = activeProcesses.get(dlId);
-        const dl = activeDownloads.get(dlId);
-
-        if (proc) {
-            if (proc.type === 'process' && proc.proc) proc.proc.kill();
-            else if (proc.type === 'request' && proc.req) proc.req.destroy();
-            activeProcesses.delete(dlId);
-        }
-        if (dl) activeDownloads.set(dlId, { ...dl, status: 'cancelled' });
-        res.json({ success: true, status: 'cancelled' });
-    });
+    router.post('/progress/:id/cancel', (req, res) => handleCancel(req.params.id, res));
+    router.post('/cancel/:id', (req, res) => handleCancel(req.params.id, res));
 
     router.post('/pause/:id', (req, res) => {
         const dlId = req.params.id;
@@ -412,36 +565,95 @@ module.exports = function (config) {
 
     // Delete a downloaded item
     router.delete('/delete/:id', (req, res) => {
+        if (!req.user || req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Only administrators can delete content.' });
+        }
+
         const dlId = req.params.id;
         const dl = activeDownloads.get(dlId);
 
-        if (dl && dl.type === 'zim' && dl.dest) {
-            try {
-                if (fs.existsSync(dl.dest)) fs.unlinkSync(dl.dest);
-                activeDownloads.delete(dlId);
-                return res.json({ success: true, message: 'ZIM file deleted' });
-            } catch (e) {
-                return res.status(500).json({ error: e.message });
+        // If it is actively downloading, forcefully kill the process first
+        const proc = activeProcesses.get(dlId);
+        if (proc) {
+            if (proc.type === 'process' && proc.proc) proc.proc.kill();
+            else if (proc.type === 'request' && proc.req) proc.req.destroy();
+            
+            // Crucial: Release file lock so Windows unlink doesn't EBUSY error
+            if (proc.fileStream) {
+                proc.fileStream.close(() => {
+                    handleStandardDeletion(dlId, res, dl);
+                });
+                activeProcesses.delete(dlId);
+                return; // Let the async callback finish the response
             }
-        } else if (dl && dl.type === 'ollama' && dl.modelName) {
-            // Validate model name before passing to exec
-            if (!SAFE_MODEL_NAME.test(dl.modelName)) {
+            activeProcesses.delete(dlId);
+        }
+
+        handleStandardDeletion(dlId, res, dl);
+    });
+
+    function handleStandardDeletion(dlId, res, dl) {
+
+        if (dlId === 'osm-tiles-local') {
+            const mapsPath = path.join(DOWNLOADS_DIR, 'maps');
+            try {
+                if (fs.existsSync(mapsPath)) {
+                    fs.rmSync(mapsPath, { recursive: true, force: true });
+                }
+                activeDownloads.delete(dlId);
+                return res.json({ success: true, message: 'Map tiles deleted' });
+            } catch (e) { return res.status(500).json({ error: e.message }); }
+        }
+
+        let isOllama = false;
+        let activeModelName = (dl && dl.modelName) ? dl.modelName : dlId;
+        if (dl && dl.type === 'ollama') isOllama = true;
+        else if (dlId && !dlId.endsWith('.zim') && dlId !== 'osm-tiles-local') {
+            try {
+                const output = require('child_process').execSync('ollama list', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+                if (output.includes(dlId)) {
+                    isOllama = true;
+                }
+            } catch(e) {}
+        }
+
+        if (isOllama) {
+            if (!SAFE_MODEL_NAME.test(activeModelName)) {
                 activeDownloads.delete(dlId);
                 return res.status(400).json({ error: 'Invalid model name' });
             }
-            execFile('ollama', ['rm', dl.modelName], { timeout: 30000 }, (err) => {
+            require('child_process').execFile('ollama', ['rm', activeModelName], { timeout:30000 }, (err) => {
                 activeDownloads.delete(dlId);
-                if (err) return res.json({ success: true, message: 'Removed from store (ollama rm may have failed)' });
-                res.json({ success: true, message: `Model ${dl.modelName} deleted` });
+                res.json({ success: true, message: `Model ${activeModelName} deleted` });
             });
-        } else {
-            // Try to find and delete any matching ZIM file
-            const files = fs.readdirSync(DOWNLOADS_DIR).filter(f => f.includes(dlId));
-            files.forEach(f => { try { fs.unlinkSync(path.join(DOWNLOADS_DIR, f)); } catch (e) { } });
-            activeDownloads.delete(dlId);
-            res.json({ success: true, message: 'Deleted' });
+            return;
         }
-    });
+
+        // Try to delete by exact path first if we have it
+        if (dl && dl.dest && fs.existsSync(dl.dest)) {
+            try {
+                if (dl.dest.endsWith('.zim')) {
+                    try {
+                        if (process.platform === 'win32') {
+                            require('child_process').execSync('taskkill /IM kiwix-serve.exe /F /T', { stdio: 'ignore' });
+                        } else {
+                            require('child_process').execSync('pkill -f "kiwix-serve"', { stdio: 'ignore' });
+                        }
+                    } catch (e) {} // Ignore if not running
+                }
+                fs.unlinkSync(dl.dest);
+                const licensePath = dl.dest.replace(/\.[^.]+$/, '') + '.license.json';
+                if (fs.existsSync(licensePath)) fs.unlinkSync(licensePath);
+                activeDownloads.delete(dlId);
+                return res.json({ success: true, message: 'Deleted' });
+            } catch (e) { }
+        }
+
+        // Fallback: Delete by prefix/pattern (sweeps orphaned zims)
+        forceSweepZim(dlId);
+        activeDownloads.delete(dlId);
+        res.json({ success: true, message: 'Deleted' });
+    }
 
     // Check what's already downloaded (survives server restart)
     router.get('/status', (req, res) => {
@@ -453,6 +665,7 @@ module.exports = function (config) {
             'wiki-en-nopic': 'wikipedia_en_all_nopic',
             'wikibooks': 'wikibooks_en',
             'wikihow': 'wikihow_en',
+            'ifixit': 'ifixit_en',
             'stackexchange': 'stackoverflow',
             'medref': 'mdwiki_en'
         };
@@ -465,19 +678,22 @@ module.exports = function (config) {
                     const filePath = path.join(DOWNLOADS_DIR, match);
                     try {
                         const stat = fs.statSync(filePath);
-                        results[itemId] = {
-                            status: 'complete',
-                            fileName: match,
-                            size: stat.size,
-                            dest: filePath,
-                            type: 'zim'
-                        };
-                        // Restore to activeDownloads so delete works
-                        if (!activeDownloads.has(itemId)) {
-                            activeDownloads.set(itemId, {
-                                status: 'complete', progress: 100, type: 'zim', dest: filePath,
-                                output: `Downloaded: ${match}`
-                            });
+                        if (activeDownloads.has(itemId) && activeDownloads.get(itemId).status !== 'complete' && activeDownloads.get(itemId).status !== 'failed' && activeDownloads.get(itemId).status !== 'corrupted') {
+                            results[itemId] = activeDownloads.get(itemId);
+                        } else {
+                            results[itemId] = {
+                                status: 'complete',
+                                fileName: match,
+                                size: stat.size,
+                                dest: filePath,
+                                type: 'zim'
+                            };
+                            if (!activeDownloads.has(itemId)) {
+                                activeDownloads.set(itemId, {
+                                    status: 'complete', progress: 100, type: 'zim', dest: filePath,
+                                    output: `Downloaded: ${match}`
+                                });
+                            }
                         }
                     } catch (e) { }
                 }
@@ -499,16 +715,20 @@ module.exports = function (config) {
                 if (!err && stdout) {
                     for (const [itemId, modelName] of Object.entries(ollamaModels)) {
                         if (stdout.includes(modelName.split(':')[0])) {
-                            results[itemId] = {
-                                status: 'complete',
-                                modelName,
-                                type: 'ollama'
-                            };
-                            if (!activeDownloads.has(itemId)) {
-                                activeDownloads.set(itemId, {
-                                    status: 'complete', progress: 100, type: 'ollama', modelName,
-                                    output: `Model ${modelName} installed`
-                                });
+                            if (activeDownloads.has(itemId) && activeDownloads.get(itemId).status !== 'complete' && activeDownloads.get(itemId).status !== 'failed') {
+                                results[itemId] = activeDownloads.get(itemId);
+                            } else {
+                                results[itemId] = {
+                                    status: 'complete',
+                                    modelName,
+                                    type: 'ollama'
+                                };
+                                if (!activeDownloads.has(itemId)) {
+                                    activeDownloads.set(itemId, {
+                                        status: 'complete', progress: 100, type: 'ollama', modelName,
+                                        output: `Model ${modelName} installed`
+                                    });
+                                }
                             }
                         }
                     }
@@ -618,6 +838,24 @@ module.exports = function (config) {
                 }
             }
         } catch (err) { }
+
+        // 4. Inject Active Downloads for UI Persistence
+        for (const [id, dl] of activeDownloads.entries()) {
+            if (dl.status !== 'complete' && dl.status !== 'corrupted' && dl.status !== 'failed' && dl.status !== 'idle') {
+                const iconType = dl.type || 'zim';
+                items.unshift({
+                    id: id,
+                    name: dl.name || id,
+                    type: iconType,
+                    sizeBytes: dl.totalBytes || 0,
+                    relativePath: dl.dest ? require('path').basename(dl.dest) : id,
+                    date: new Date(),
+                    progress: dl.progress || 0,
+                    isDownloading: true,
+                    status: dl.status
+                });
+            }
+        }
 
         res.json({ files: items });
     });

@@ -7,6 +7,7 @@ const LLMModule = {
     models: [],
     selectedModel: '',
     isGenerating: false,
+    useRag: true, // Default to true for better "out of box" experience
 
     async init() {
         const el = document.getElementById('mod-llm');
@@ -19,6 +20,9 @@ const LLMModule = {
                     </div>
                     <div style="display:flex; gap:10px; align-items:center;">
                         <button class="btn btn-sm btn-outline" id="refreshModelsBtn" onclick="LLMModule.checkStatus()" title="Refresh Models">Refresh</button>
+                        <button class="btn btn-sm ${this.useRag ? 'btn-primary' : 'btn-outline'}" id="ragToggleBtn" onclick="LLMModule.toggleRag()" title="Toggle Knowledge Base">
+                            ${this.useRag ? '📚 Knowledge: ON' : '📖 Knowledge: OFF'}
+                        </button>
                         <div class="model-selector">
                             <label>Model:</label>
                             <select id="modelSelect" onchange="LLMModule.selectedModel = this.value">
@@ -78,6 +82,18 @@ const LLMModule = {
         }
     },
 
+    toggleRag() {
+        this.useRag = !this.useRag;
+        const btn = document.getElementById('ragToggleBtn');
+        if (this.useRag) {
+            btn.classList.replace('btn-outline', 'btn-primary');
+            btn.textContent = '📚 Knowledge: ON';
+        } else {
+            btn.classList.replace('btn-primary', 'btn-outline');
+            btn.textContent = '📖 Knowledge: OFF';
+        }
+    },
+
     async send() {
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
@@ -101,9 +117,17 @@ const LLMModule = {
                 body: JSON.stringify({
                     model: this.selectedModel,
                     messages: this.messages,
-                    stream: true
+                    stream: true,
+                    useRag: this.useRag
                 })
             });
+
+            if (this.useRag) {
+                const statusEl = document.getElementById('llmStatus');
+                const oldStatus = statusEl.textContent;
+                statusEl.innerHTML = '<span class="status-dot pulse" style="background:var(--cyan)"></span> Searching local library...';
+                setTimeout(() => { if(statusEl.textContent.includes('Searching')) statusEl.textContent = oldStatus; }, 3000);
+            }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
