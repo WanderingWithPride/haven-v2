@@ -69,6 +69,7 @@ body {
     color: var(--text);
     overflow: hidden;
     height: 100vh;
+    height: 100dvh;
     display: flex;
 }
 
@@ -315,6 +316,7 @@ body {
 .main-content {
     flex: 1;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     position: relative;
     background: var(--bg);
@@ -2615,8 +2617,8 @@ body {
         width: 100%;
         padding-top: 56px;
         /* space for mobile header */
-        padding-bottom: 120px;
-        /* space for mobile browser bottom bar + extra scroll */
+        padding-bottom: 24px;
+        /* minimal buffer */
     }
 
     /* File manager: hide date column and show actions on mobile */
@@ -2668,7 +2670,31 @@ body {
     }
 
     .module {
-        padding: 16px;
+        padding: 16px 12px;
+    }
+
+    .module-header {
+        padding: 16px 16px;
+        margin-left: -12px;
+        margin-right: -12px;
+        margin-top: -16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        top: -16px;
+    }
+
+    .store-tabs {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+    }
+
+    .store-tabs .btn {
+        flex: 1;
+        font-size: 11px;
+        padding: 8px 4px;
+        justify-content: center;
     }
 
     .photo-grid {
@@ -2676,7 +2702,7 @@ body {
     }
 
     .grid-3 {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: 1fr;
     }
 
     .login-card {
@@ -2693,6 +2719,31 @@ body {
 
     .store-items {
         grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .store-item {
+        padding: 16px;
+    }
+
+    .store-item-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .store-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .store-item-name {
+        font-size: 16px;
+    }
+
+    .store-tag {
+        font-size: 9px;
     }
 }
 
