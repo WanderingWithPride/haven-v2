@@ -13,6 +13,7 @@ CyberDeck-Website/
 dist/
 node_modules/
 CyberDeckClient/
+CyberDeckServerApp/
 .env
 .env.*
 .DS_Store
