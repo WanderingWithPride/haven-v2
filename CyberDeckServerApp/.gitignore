@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+/build
+/app/build
+/.cxx/
+/app/.cxx/
+/captures
+.externalNativeBuild
+*.jks
+*.keystore
+/app/src/main/assets/nodejs-project/
+
+# Ignore log files
+/app/build_log.txt
+/app/src/main/assets/nodejs-project/npm_log.txt
